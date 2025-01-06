@@ -1,0 +1,114 @@
+---
+- name: Manage Falcon agent installation
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: End play for active hosts
+      ansible.builtin.meta: end_play
+      when: falcon_host_state == 'present'
+
+    - name: Ping host
+      ansible.builtin.ping:
+      register: host_facts
+      ignore_unreachable: true
+
+    - name: End play for unreachable hosts
+      ansible.builtin.meta: end_host
+      when: host_facts is unreachable
+
+    - name: Gather host facts
+      ansible.builtin.setup:
+
+    - name: Undeploy agent
+      ansible.builtin.include_role:
+        name: crowdstrike.falcon.falcon_uninstall
+      when: falcon_host_state == 'absent'
+
+    - name: Reset host unreachable status
+      ansible.builtin.meta: clear_host_errors
+
+- name: Manage Falcon agent registration
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: End play for active hosts
+      ansible.builtin.meta: end_play
+      when: falcon_host_state == 'present'
+
+    - name: Manage stale agents
+      delegate_to: localhost
+      when: falcon_host_state == 'absent'
+      block:
+        - name: Get Crowdstrike Authentication Token
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/oauth2/token"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: "{{ falcon_client_id }}"
+              client_secret: "{{ falcon_client_secret }}"
+            status_code: 201
+          register: auth_response
+          run_once: true
+          delegate_to: localhost
+
+        - name: Set auth facts
+          ansible.builtin.set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          no_log: true
+
+        - name: Query registered agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
+            body:
+              filter: "hostname:{{ inventory_hostname }}"
+          register: device_query_head
+
+        - name: Set pagination facts
+          ansible.builtin.set_fact:
+            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ device_query_head.json.meta.pagination }}"
+
+        - name: Paginate agent query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ device_limit }}&offset={{ item }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
+            body:
+              filter: "hostname:{{ inventory_hostname }}"
+          register: device_query_pages
+          loop: "{{ device_pages }}"
+
+        - name: Set agent facts
+          ansible.builtin.set_fact:
+            device_list: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ device_query_head.json.resources }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+            _pages: "{{ device_query_pages.results | default([]) }}"
+
+        - name: Unregister stale agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            status_code: [202, 409]
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: json
+            body:
+              ids: "{{ device_ids }}"
+          vars:
+            device_ids: "{{ device_list }}"
+          when: device_list | length > 0

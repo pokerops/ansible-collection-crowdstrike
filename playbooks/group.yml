@@ -1,0 +1,218 @@
+---
+- name: Manage Crowdstrike groups
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: Manage Falcon console group
+      delegate_to: localhost
+      run_once: true
+      block:
+        - name: Get Crowdstrike Authentication Token
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/oauth2/token"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: "{{ falcon_client_id }}"
+              client_secret: "{{ falcon_client_secret }}"
+            status_code: 201
+          register: auth_response
+
+        - name: Set auth facts
+          set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          no_log: true
+
+        - name: Manage Falcon group
+          when: falcon_group is defined
+          block:
+            - name: Query Falcon group
+              ansible.builtin.uri:
+                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+                follow_redirects: "{{ falcon_api_redirect }}"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ api_token }}"
+                body_format: form-urlencoded
+                body:
+                  filter: "filter=name:{{ falcon_group }}"
+              register: group_query
+
+            - name: Set group facts
+              ansible.builtin.set_fact:
+                falcon_group_data: "{{ group_query.json.resources | default([]) }}"
+
+            - name: Check group query
+              ansible.builtin.assert:
+                that: falcon_group_data | length in [0, 1]
+                fail_msg: "Group query returned unexpected results: {{ falcon_group_data }}"
+
+            - name: Set group facts
+              ansible.builtin.set_fact:
+                group_id: "{{ _group.id }}"
+              vars:
+                _group: "{{ falcon_group_data | first }}"
+              when: falcon_group_data | length == 1
+
+            - name: End group management for present groups
+              ansible.builtin.meta: end_play
+              when:
+                - falcon_group_state == 'present'
+                - falcon_group_data | length == 1
+
+            - name: Create group
+              ansible.builtin.uri:
+                url: "{{ falcon_api_base }}/devices/entities/host-groups/v1"
+                follow_redirects: "{{ falcon_api_redirect }}"
+                method: POST
+                status_code: 201
+                headers:
+                  Authorization: "Bearer {{ api_token }}"
+                body_format: json
+                body:
+                  resources:
+                    - name: "{{ falcon_group }}"
+                      group_type: "static"
+              when: falcon_group_state == 'present'
+
+            - name: Delete group
+              when: falcon_group_state == 'absent'
+              block:
+                - name: End group management for absent groups
+                  ansible.builtin.meta: end_play
+                  when: falcon_group_data | length == 0
+
+                - name: Query group members
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&limit={{ falcon_api_page_size }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: group_members_query
+
+                - name: Set group members facts
+                  ansible.builtin.set_fact:
+                    group_members: "{{ group_members_query.json.resources }}"
+
+                - name: Check group members
+                  ansible.builtin.assert:
+                    that: group_members | length == 0
+                    fail_msg: "Group has active registered members"
+
+                - name: Query prevention policies
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/combined/prevention/v1?limit={{ falcon_api_page_size }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: policy_prevention_query_head
+
+                - name: Set prevention policy pagination facts
+                  ansible.builtin.set_fact:
+                    prevention_policy_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+                    prevention_policy_limit: "{{ _pagination.limit }}"
+                  vars:
+                    _pagination: "{{ policy_prevention_query_head.json.meta.pagination }}"
+
+                - name: Paginate prevention policiy query
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/combined/prevention/v1?limit={{ prevention_policy_limit }}&offset={{ item }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: policy_prevention_query_pages
+                  loop: "{{ prevention_policy_pages }}"
+
+                - name: Set preention policy facts
+                  ansible.builtin.set_fact:
+                    prevention_policies: "{{ _head + _tail }}"
+                  vars:
+                    _head: "{{ policy_prevention_query_head.json.resources }}"
+                    _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+                    _pages: "{{ prevention_policy_query_pages.results | default([]) }}"
+
+                - name: Query sensor policies
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/combined/sensor-update/v1?limit={{ falcon_api_page_size }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: policy_sensor_query_head
+
+                - name: Set prevention policy pagination facts
+                  ansible.builtin.set_fact:
+                    sensor_policy_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+                    sensor_policy_limit: "{{ _pagination.limit }}"
+                  vars:
+                    _pagination: "{{ policy_sensor_query_head.json.meta.pagination }}"
+
+                - name: Paginate sensor policy query
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/combined/sensor-update/v1?limit={{ sensor_policy_limit }}&offset={{ item }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: policy_sensor_query_pages
+                  loop: "{{ sensor_policy_pages }}"
+
+                - name: Set prevention policy facts
+                  ansible.builtin.set_fact:
+                    sensor_policies: "{{ _head + _tail }}"
+                  vars:
+                    _head: "{{ policy_sensor_query_head.json.resources }}"
+                    _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+                    _pages: "{{ policy_sensor_query_pages.results | default([]) }}"
+
+                - name: Filter policies
+                  ansible.builtin.set_fact:
+                    prevention_ids: "{{ prevention_policies | json_query(_query) | map(attribute='id') | list }}"
+                    sensor_ids: "{{ sensor_policies | json_query(_query) | map(attribute='id') | list }}"
+                  vars:
+                    _query: "[?groups[?id =='{{ group_id }}']]"
+
+                - name: Drop group from prevention policies
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/entities/prevention-actions/v1?action_name=remove-host-group"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: POST
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                    body_format: json
+                    body:
+                      action_parameters:
+                        - name: group_id
+                          value: "{{ group_id }}"
+                      ids: "{{ prevention_ids }}"
+                  when: prevention_ids | length > 0
+
+                - name: Drop group from sensor policies
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/policy/entities/sensor-update-actions/v1?action_name=remove-host-group"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: POST
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                    body_format: json
+                    body:
+                      action_parameters:
+                        - name: group_id
+                          value: "{{ group_id }}"
+                      ids: "{{ sensor_ids }}"
+                  when: sensor_ids | length > 0
+
+                - name: Delete group object
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/devices/entities/host-groups/v1?ids={{ group_id }}"
+                    follow_redirects: "{{ falcon_api_redirect | default(False) }}"
+                    method: DELETE
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  vars:
+                    group_target: "{{ group_query.json.resources | first }}"
+                    group_id: "{{ group_target.id }}"

@@ -1,0 +1,6 @@
+---
+- name: Import install playbook
+  ansible.builtin.import_playbook: pokerops.crowdstrike.deploy
+  vars:
+    falcon_group_state: present
+    falcon_host_state: present

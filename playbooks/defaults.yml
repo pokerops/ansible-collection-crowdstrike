@@ -1,0 +1,58 @@
+---
+- name: Set Falcon defaults
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: Set api auth default
+      ansible.builtin.set_fact:
+        falcon_api_base: https://api.crowdstrike.com
+      when: crowdstrike_base_url is not defined
+
+    - name: Set api pagination size default
+      ansible.builtin.set_fact:
+        falcon_api_page_size: 50
+      when: falcon_api_page_size is not defined
+
+    - name: Set api redirect default
+      ansible.builtin.set_fact:
+        falcon_api_redirect: true
+      when: falcon_api_redirect is not defined
+
+    - name: Set host state default
+      ansible.builtin.set_fact:
+        falcon_host_state: present
+      when: falcon_host_state is not defined
+
+    - name: Set agent version decrement
+      ansible.builtin.set_fact:
+        falcon_agent_version_decrement: 2
+      when: falcon_agent_version_decrement is not defined
+
+    - name: Set group state default
+      ansible.builtin.set_fact:
+        falcon_group_state: present
+      when: falcon_group_state is not defined
+
+    - name: Set private group state
+      ansible.builtin.set_fact:
+        _falcon_group_state: "{{ falcon_group_state }}"
+
+    - name: Set group update default
+      ansible.builtin.set_fact:
+        falcon_group_update: false
+      when: falcon_group_update is not defined
+
+    - name: Set group tag default
+      ansible.builtin.set_fact:
+        falcon_group_tag: "{{ falcon_group }}"
+      when: falcon_group_tag is not defined
+
+    - name: Set api retry interval default
+      ansible.builtin.set_fact:
+        falcon_api_poll_interval: 60
+      when: falcon_api_poll_interval is not defined
+
+    - name: Set api retry count default
+      ansible.builtin.set_fact:
+        falcon_api_poll_retries: 10
+      when: falcon_api_poll_retries is not defined

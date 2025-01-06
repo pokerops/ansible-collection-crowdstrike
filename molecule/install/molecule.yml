@@ -1,0 +1,62 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+    requirements-file: requirements.yml
+driver:
+  name: default
+platforms:
+  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-01
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    mem: 4
+    groups:
+      - crowdstrike
+  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-02
+    image: "${MOLECULE_KVM_IMAGE}"
+    cpu: 2
+    mem: 4
+    groups:
+      - crowdstrike
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      remote_tmp: /tmp
+      allow_world_readable_tmpfiles: true
+      callbacks_enabled: ansible.posix.profile_tasks
+  playbooks:
+    create: ../common/create.yml
+    prepare: ../common/prepare.yml
+    converge: ../common/install.yml
+    side_effect: ../common/uninstall.yml
+    verify: ../common/verify.yml
+    destroy: ../common/destroy.yml
+  inventory:
+    group_vars:
+      all:
+        libvirt_platforms: "{{ molecule_yml.platforms }}"
+        falcon_group: molecule
+        falcon_client_id: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_ID') }}"
+        falcon_client_secret: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_SECRET') }}"
+        falcon_api_enable_no_log: false # do not enable this in production
+verifier:
+  name: ansible
+scenario:
+  prepare_sequence:
+    - prepare
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  cleanup_sequence:
+    - cleanup
+  test_sequence:
+    - side_effect
+    - dependency
+    - create
+    - prepare
+    - converge
+    - verify
+    - side_effect

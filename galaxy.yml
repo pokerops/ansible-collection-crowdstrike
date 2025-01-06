@@ -1,0 +1,20 @@
+---
+namespace: pokerops
+name: crowdstrike
+version: 0.0.1
+readme: README.md
+authors:
+  - Ted Cook <teodorocook@gmail.com>
+description: This collection provides standard opinionated playbook For CrowdStrike Falcon rollout
+license:
+  - MIT
+tags:
+  - crowdstrike
+dependencies:
+  "crowdstrike.falcon": "*"
+  "nephelaiio.plugins": "*"
+repository: http://github.com/pokerops/ansible-collection-crowdstrike
+documentation: http://github.com/pokerops/ansible-collection-crowdstrike
+homepage: http://github.com/pokerops/ansible-collection-crowdstrike
+issues: http://github.com/pokerops/ansible-collection-crowdstrike/issues
+build_ignore: []

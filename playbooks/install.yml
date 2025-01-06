@@ -1,0 +1,140 @@
+---
+- name: Manage Crosdstrike Falcon agents
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: End play for absent hosts
+      ansible.builtin.meta: end_play
+      when: falcon_host_state == 'absent'
+
+    - name: Gather host facts
+      ansible.builtin.setup:
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Deploy Crowdstrike agent
+      ansible.builtin.include_role:
+        name: crowdstrike.falcon.falcon_install
+      when: services['falcon-sensor'] is not defined
+
+    - name: Configure Crowdstrike agent
+      ansible.builtin.include_role:
+        name: crowdstrike.falcon.falcon_configure
+
+    - name: Query agent id
+      crowdstrike.falcon.falconctl_info:
+        name:
+          - "aid"
+      register: agent_info_query
+      become: true
+
+    - name: Set agent id facts
+      ansible.builtin.set_fact:
+        agent_id: "{{ agent_info_query.falconctl_info.aid }}"
+
+    - name: Manage agent group registrations
+      when: ansible_play_hosts == groups['crowdstrike']
+      block:
+        - name: Register agents to group
+          run_once: true
+          block:
+            - name: Query registered groups
+              ansible.builtin.uri:
+                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+                follow_redirects: "{{ falcon_api_redirect }}"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ api_token }}"
+                body_format: form-urlencoded
+                body:
+                  filter: "name:{{ falcon_group }}"
+              register: group_query
+
+            - name: Set group facts
+              ansible.builtin.set_fact:
+                falcon_group_data: "{{ group_query.json.resources | default([]) }}"
+
+            - name: Check group query
+              ansible.builtin.assert:
+                that: falcon_group_data | length == 1
+                fail_msg: "Group query returned unexpected results: {{ falcon_group_data }}"
+
+            - name: Set group facts
+              ansible.builtin.set_fact:
+                group_id: "{{ _group.id }}"
+              vars:
+                _group: "{{ falcon_group_data | first }}"
+
+            - name: Aggregate agent ids
+              ansible.builtin.set_fact:
+                agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
+
+            - name: Register agent to group
+              ansible.builtin.uri:
+                url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=add-hosts"
+                follow_redirects: "{{ falcon_api_redirect }}"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ api_token }}"
+                body_format: json
+                body:
+                  action_parameters:
+                    - name: filter
+                      value: "(device_id:{{ agent_ids | to_json }})"
+                  ids:
+                    - "{{ group_id }}"
+
+        - name: Query group members
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: group_members_query_head
+
+        - name: Set group member pagination facts
+          ansible.builtin.set_fact:
+            group_members_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            group_members_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
+        - name: Paginate group member query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&limit={{ group_members_limit }}&offset={{ item }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: group_members_query_pages
+          loop: "{{ group_members_pages }}"
+
+        - name: Set group members facts
+          ansible.builtin.set_fact:
+            group_members: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ group_members_query_head.json.resources }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+            _pages: "{{ group_members_query_pages.results | default([]) }}"
+
+        - name: Set group member facts
+          ansible.builtin.set_fact:
+            group_members_stale: "{{ group_members | difference(agent_ids) }}"
+
+        - name: Drop stale members from group
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=remove-hosts"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: json
+            body:
+              action_parameters:
+                - name: filter
+                  value: "(device_id:{{ group_members_stale | to_json }})"
+              ids:
+                - "{{ group_id }}"
+          when: group_members_stale | length > 0

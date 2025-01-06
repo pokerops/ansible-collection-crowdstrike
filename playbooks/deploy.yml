@@ -1,0 +1,20 @@
+---
+- name: Set Falcon defaults
+  ansible.builtin.import_playbook: pokerops.crowdstrike.defaults
+
+- name: Validate Falcon install params
+  ansible.builtin.import_playbook: pokerops.crowdstrike.validate
+
+- name: Create Falcon group
+  ansible.builtin.import_playbook: pokerops.crowdstrike.group
+  when: falcon_group_state == 'present'
+
+- name: Deploy Falcon Agent
+  ansible.builtin.import_playbook: pokerops.crowdstrike.install
+
+- name: Deploy Falcon Agent
+  ansible.builtin.import_playbook: pokerops.crowdstrike.destroy
+
+- name: Destroy Falcon group
+  ansible.builtin.import_playbook: pokerops.crowdstrike.group
+  when: falcon_group_state == 'absent'

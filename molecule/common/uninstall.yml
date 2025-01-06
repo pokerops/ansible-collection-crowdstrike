@@ -1,0 +1,6 @@
+---
+- name: Import libvirt destroy playbook
+  ansible.builtin.import_playbook: pokerops.crowdstrike.deploy
+  vars:
+    falcon_group_state: absent
+    falcon_host_state: absent

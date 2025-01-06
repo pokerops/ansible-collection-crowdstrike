@@ -1,0 +1,45 @@
+---
+- name: Validate Falcon install params
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: Check falcon_group_state vardef
+      ansible.builtin.assert:
+        that:
+          - falcon_group_state is defined
+          - falcon_group_state in ['present', 'absent']
+        fail_msg: falcon_group_state must be defined and one of ['present', 'absent']
+
+    - name: Check falcon_group_state consistency
+      ansible.builtin.assert:
+        that: _state | length == 1
+        fail_msg: falcon_group_state must be consistent across all hosts
+      vars:
+        _state: "{{ ansible_play_hosts_all | map('extract', hostvars, ['_falcon_group_state']) | unique }}"
+
+    - name: Check falcon_host_state vardef
+      ansible.builtin.assert:
+        that:
+          - falcon_host_state is defined
+          - falcon_host_state in ['present', 'absent']
+        fail_msg: falcon_host_state must be defined and one of ['present', 'absent']
+
+    - name: Check falcon_client_id vardef
+      ansible.builtin.assert:
+        that: falcon_api_base is ansible.builtin.url
+        fail_msg: falcon_api_base must be a valid url, got {{ falcon_api_base }}
+
+    - name: Check falcon_client_id vardef
+      ansible.builtin.assert:
+        that: falcon_client_id is defined
+        fail_msg: falcon_client_id must be defined
+
+    - name: Check falcon_client_id value
+      ansible.builtin.assert:
+        that: falcon_client_id != ""
+        fail_msg: falcon_client_id must be non-empty
+
+    - name: Check falcon_client_secret vardef
+      ansible.builtin.assert:
+        that: falcon_client_secret != ""
+        fail_msg: falcon_client_secret must be non-empty

@@ -1,0 +1,100 @@
+---
+- name: Set Falcon defaults
+  ansible.builtin.import_playbook: pokerops.crowdstrike.defaults
+
+- name: Verify groups and hosts
+  hosts: crowdstrike
+  tasks:
+    - name: Verify group
+      run_once: true
+      delegate_to: localhost
+      block:
+        - name: Get Crowdstrike Authentication Token
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/oauth2/token"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: "{{ falcon_client_id }}"
+              client_secret: "{{ falcon_client_secret }}"
+            status_code: 201
+          register: auth_response
+
+        - name: Set auth facts
+          set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          no_log: true
+
+        - name: Query registered groups
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
+            body:
+              filter: "filter=name:{{ falcon_group }}"
+          register: group_query
+
+        - name: Set group facts
+          ansible.builtin.set_fact:
+            group_data: "{{ group_query.json.resources }}"
+
+        - name: Verify group facts
+          ansible.builtin.assert:
+            that:
+              - group_data is not none
+              - group_data | length == 1
+            fail_msg: "Group query returned unexpected results: {{ group_data }}"
+
+    - name: Verify Falcon agents
+      delegate_to: localhost
+      block:
+        - name: Query agent id
+          crowdstrike.falcon.falconctl_info:
+            name:
+              - "aid"
+          register: agent_info_query
+          become: true
+
+        - name: Query registered agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter=hostname:'{{ inventory_hostname }}'"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: host_query
+
+        - name: Set agent facts
+          ansible.builtin.set_fact:
+            falcon_host_data: "{{ host_query.json.resources }}"
+
+        - name: Verify agent facts
+          ansible.builtin.assert:
+            that:
+              - falcon_host_data is not none
+              - falcon_host_data | length == 1
+            fail_msg: "Host query returned unexpected results: {{ falcon_host_data }}"
+
+        - name: Query group members
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group.id }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _group: "{{ group_data | first }}"
+          register: group_members_query
+          run_once: true
+
+        - name: Verify group registration
+          ansible.builtin.set_fact:
+            that: agent_aid in group_members
+            fail_msg: "Agent id {{ agent_aid }} not found in group {{ falcon_group }}, got {{ group_members }}"
+          vars:
+            group_members: "{{ group_members_query.json.resources }}"
+            agent_aid: "{{ agent_info_query.falconctl_info.aid }}"
