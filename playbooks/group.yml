@@ -20,7 +20,7 @@
           register: auth_response
 
         - name: Set auth facts
-          set_fact:
+          ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
           no_log: true
 
