@@ -13,6 +13,12 @@
     - name: Gather service facts
       ansible.builtin.service_facts:
 
+    - name: Install gpg package
+      ansible.builtin.package:
+        name: gpg
+        state: present
+      become: true
+
     - name: Deploy Crowdstrike agent
       ansible.builtin.include_role:
         name: crowdstrike.falcon.falcon_install
