@@ -23,7 +23,7 @@ install:
 	@type poetry >/dev/null || pip3 install poetry
 	@poetry self add poetry-plugin-export
 	@type yq >/dev/null || sudo apt-get install -y yq
-	@sudo apt-get install -y libvirt-dev network-manager
+	@sudo apt-get install -y libvirt-dev network-manager gpg
 	@poetry install --no-root
 
 lint: install
