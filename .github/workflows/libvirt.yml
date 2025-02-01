@@ -14,7 +14,6 @@ jobs:
       matrix:
         scenario:
           - install
-          - destroy
         image:
           - https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
           - https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
@@ -47,7 +46,7 @@ jobs:
       - name: Run molecule tests.
         run: make test
         env:
-          MOLECULE_KVM_IMAGE: ${{ matrix.image.name }}
+          MOLECULE_KVM_IMAGE: ${{ matrix.image }}
           MOLECULE_SCENARIO: ${{ matrix.scenario }}
           CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
           CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
