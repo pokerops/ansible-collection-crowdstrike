@@ -1,5 +1,6 @@
 .PHONY: ${MAKECMDGOALS}
 
+PKGMAN = $$(if [ "$(HOST_DISTRO)" = "fedora" ]; then echo "dnf" ; else echo "apt-get"; fi)
 MOLECULE_SCENARIO ?= install
 MOLECULE_KVM_DISTRO ?= jammy
 MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/${MOLECULE_KVM_DISTRO}/current/${MOLECULE_KVM_DISTRO}-server-cloudimg-amd64.img
@@ -25,7 +26,10 @@ install:
 	@type poetry >/dev/null || pip3 install poetry
 	@poetry self add poetry-plugin-export
 	@type yq >/dev/null || sudo apt-get install -y yq
-	@sudo apt-get install -y libvirt-dev network-manager gpg
+	@type expect >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y expect
+	@type nmcli >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo NetworkManager; else echo network-manager; fi)
+	@sudo ${PKGMAN} install -y xfsprogs gpg
+	@sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo libvirt-devel; else echo libvirt-dev; fi)
 	@poetry install --no-root
 
 lint: install
