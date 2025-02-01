@@ -32,12 +32,15 @@ lint: install
 
 requirements: install
 	@python --version
-	@python --version
-	@[ -f ${ROLE_FILE} ] && yq '.roles[].name' =r < ${ROLE_FILE} | xargs -I {} rm -rf roles/{}
-	@[ -f ${ROLE_FILE} ] && poetry run ansible-galaxy role install \
-		--force --no-deps \
-		--roles-path ${ROLE_DIR} \
-		--role-file ${ROLE_FILE}
+	@if [ -f ${ROLE_FILE} ]; then \
+		yq '.roles[].name' -r < ${ROLE_FILE} | xargs -rI {} rm -rf roles/{} ; \
+	fi
+	@if [ -f ${ROLE_FILE} ]; then \
+		poetry run ansible-galaxy role install \
+			--force --no-deps \
+			--roles-path ${ROLE_DIR} \
+			--role-file ${ROLE_FILE} ; \
+	fi
 	@poetry run ansible-galaxy collection install \
 		--force-with-deps .
 	@\find ./ -name "*.ymle*" -delete
