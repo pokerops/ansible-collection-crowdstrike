@@ -53,7 +53,7 @@ scenario:
   cleanup_sequence:
     - cleanup
   test_sequence:
-    - side_effect
+    - destroy
     - dependency
     - create
     - prepare
