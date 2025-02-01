@@ -49,16 +49,16 @@
               - group_data | length == 1
             fail_msg: "Group query returned unexpected results: {{ group_data }}"
 
+    - name: Query agent id
+      crowdstrike.falcon.falconctl_info:
+        name:
+          - "aid"
+      register: agent_info_query
+      become: true
+
     - name: Verify Falcon agents
       delegate_to: localhost
       block:
-        - name: Query agent id
-          crowdstrike.falcon.falconctl_info:
-            name:
-              - "aid"
-          register: agent_info_query
-          become: true
-
         - name: Query registered agents
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter=hostname:'{{ inventory_hostname }}'"
