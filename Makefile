@@ -27,7 +27,6 @@ install:
 
 lint: install
 	poetry run yamllint .
-	poetry run ansible-lint .
 	poetry run ansible-lint playbooks/
 
 requirements: install
