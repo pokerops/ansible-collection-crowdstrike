@@ -1,7 +1,8 @@
 .PHONY: ${MAKECMDGOALS}
 
 MOLECULE_SCENARIO ?= install
-MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+MOLECULE_KVM_DISTRO ?= jammy
+MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/${MOLECULE_KVM_DISTRO}/current/${MOLECULE_KVM_DISTRO}-server-cloudimg-amd64.img
 GALAXY_API_KEY ?=
 GITHUB_REPOSITORY ?= $$(git config --get remote.origin.url | cut -d':' -f 2 | cut -d. -f 1)
 GITHUB_ORG = $$(echo ${GITHUB_REPOSITORY} | cut -d/ -f 1)
@@ -16,6 +17,7 @@ COLLECTION_VERSION = $$(yq '.version' < galaxy.yml)
 all: install version lint test
 
 test: lint
+	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
@@ -49,6 +51,7 @@ build: requirements
 	@poetry run ansible-galaxy collection build --force
 
 dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
+	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
@@ -58,7 +61,6 @@ ifeq (login,$(firstword $(MAKECMDGOALS)))
 endif
 
 login:
-	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO} ${LOGIN_ARGS}
 
 ignore:
