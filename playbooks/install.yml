@@ -133,6 +133,7 @@
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=remove-hosts"
             follow_redirects: "{{ falcon_api_redirect }}"
+            status_code: [200, 400]
             method: POST
             headers:
               Authorization: "Bearer {{ api_token }}"
