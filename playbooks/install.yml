@@ -145,3 +145,4 @@
               ids:
                 - "{{ group_id }}"
           when: group_members_stale | length > 0
+          run_once: true
