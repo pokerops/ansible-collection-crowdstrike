@@ -37,7 +37,7 @@ provisioner:
     group_vars:
       all:
         libvirt_platforms: "{{ molecule_yml.platforms }}"
-        falcon_group: "molecule_{{ lookup('env', 'CROWDSTRIKE_CLIENT_ID') }}"
+        falcon_group: "molecule_${MOLECULE_SCENARIO_NAME}_${MOLECULE_KVM_DISTRO}"
         falcon_client_id: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_ID') }}"
         falcon_client_secret: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_SECRET') }}"
         falcon_api_enable_no_log: false # do not enable this in production
