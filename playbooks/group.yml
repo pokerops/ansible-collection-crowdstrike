@@ -210,7 +210,7 @@
                   ansible.builtin.uri:
                     url: "{{ falcon_api_base }}/devices/entities/host-groups/v1?ids={{ group_id }}"
                     follow_redirects: "{{ falcon_api_redirect | default(False) }}"
-                    status_code: [200, 400]
+                    status_code: [200, 404]
                     method: DELETE
                     headers:
                       Authorization: "Bearer {{ api_token }}"
