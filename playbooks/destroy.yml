@@ -98,6 +98,10 @@
             _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ device_query_pages.results | default([]) }}"
 
+        - name: Debug stale agents
+          ansible.builtin.debug:
+            msg: "Pruning stable devices {{ device_list }}"
+
         - name: Unregister stale agents
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
