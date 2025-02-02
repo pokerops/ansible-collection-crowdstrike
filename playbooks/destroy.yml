@@ -100,7 +100,7 @@
 
         - name: Debug stale agents
           ansible.builtin.debug:
-            msg: "Pruning stable devices {{ device_list }}"
+            msg: "Pruning stale devices {{ device_list }}"
 
         - name: Unregister stale agents
           ansible.builtin.uri:

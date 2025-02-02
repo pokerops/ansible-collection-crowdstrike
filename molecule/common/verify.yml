@@ -35,7 +35,7 @@
               Authorization: "Bearer {{ api_token }}"
             body_format: form-urlencoded
             body:
-              filter: "filter=name:{{ falcon_group }}"
+              filter: "name:{{ falcon_group }}"
           register: group_query
 
         - name: Set group facts
@@ -61,11 +61,14 @@
       block:
         - name: Query registered agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter=hostname:'{{ inventory_hostname }}'"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ falcon_api_page_size }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
+            body:
+              filter: "hostname:{{ inventory_hostname }}"
           register: host_query
 
         - name: Set agent facts

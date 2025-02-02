@@ -36,7 +36,7 @@
                   Authorization: "Bearer {{ api_token }}"
                 body_format: form-urlencoded
                 body:
-                  filter: "filter=name:{{ falcon_group }}"
+                  filter: "name:{{ falcon_group }}"
               register: group_query
 
             - name: Set group facts

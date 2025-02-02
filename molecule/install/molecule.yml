@@ -60,3 +60,4 @@ scenario:
     - converge
     - verify
     - side_effect
+    - destroy
