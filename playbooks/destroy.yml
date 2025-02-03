@@ -60,14 +60,14 @@
 
         - name: Query registered agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ falcon_api_page_size }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
             body_format: form-urlencoded
-            body:
-              filter: "hostname:{{ inventory_hostname }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
           register: device_query_head
 
         - name: Set pagination facts
@@ -79,14 +79,13 @@
 
         - name: Paginate agent query
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ device_limit }}&offset={{ item }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
-            body_format: form-urlencoded
-            body:
-              filter: "hostname:{{ inventory_hostname }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
           register: device_query_pages
           loop: "{{ device_pages }}"
 

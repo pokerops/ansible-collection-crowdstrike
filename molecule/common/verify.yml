@@ -28,14 +28,14 @@
 
         - name: Query registered groups
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+            url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
             body_format: form-urlencoded
-            body:
-              filter: "name:{{ falcon_group }}"
+          vars:
+            _filter: "name:'{{ falcon_group }}'"
           register: group_query
 
         - name: Set group facts
@@ -56,19 +56,22 @@
       register: agent_info_query
       become: true
 
+    - name: Set agent id facts
+      ansible.builtin.set_fact:
+        agent_id: "{{ agent_info_query.falconctl_info.aid }}"
+
     - name: Verify Falcon agents
       delegate_to: localhost
       block:
         - name: Query registered agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ falcon_api_page_size }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
-            body_format: form-urlencoded
-            body:
-              filter: "hostname:{{ inventory_hostname }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
           register: host_query
 
         - name: Set agent facts
@@ -82,7 +85,7 @@
               - falcon_host_data | length == 1
             fail_msg: "Host query returned unexpected results: {{ falcon_host_data }}"
 
-        - name: Query group members
+        - name: Verify group registrations
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group.id }}"
             follow_redirects: "{{ falcon_api_redirect }}"
@@ -91,13 +94,10 @@
               Authorization: "Bearer {{ api_token }}"
           vars:
             _group: "{{ group_data | first }}"
+            _group_members: "{{ group_members_query.json.resources | sort }}"
+            _agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | sort | list }}"
           register: group_members_query
           run_once: true
-
-        - name: Verify group registration
-          ansible.builtin.set_fact:
-            that: agent_aid in group_members
-            fail_msg: "Agent id {{ agent_aid }} not found in group {{ falcon_group }}, got {{ group_members }}"
-          vars:
-            group_members: "{{ group_members_query.json.resources }}"
-            agent_aid: "{{ agent_info_query.falconctl_info.aid }}"
+          until: _agent_ids == _group_members
+          retries: 5
+          delay: 60

@@ -47,14 +47,14 @@
           block:
             - name: Query registered groups
               ansible.builtin.uri:
-                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
                 follow_redirects: "{{ falcon_api_redirect }}"
                 method: GET
                 headers:
                   Authorization: "Bearer {{ api_token }}"
                 body_format: form-urlencoded
-                body:
-                  filter: "name:{{ falcon_group }}"
+              vars:
+                _filter: "name:'{{ falcon_group }}'"
               register: group_query
 
             - name: Set group facts
