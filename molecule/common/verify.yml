@@ -66,30 +66,62 @@
 
     - name: Verify Falcon agents
       delegate_to: localhost
+      run_once: true
       block:
-        - name: Query registered agents
+        - name: Query registered devices
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?&limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: device_query_head
+
+        - name: Set pagination facts
+          ansible.builtin.set_fact:
+            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ device_query_head.json.meta.pagination }}"
+
+        - name: Paginate agent query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
           vars:
             _filter: "hostname:['{{ inventory_hostname }}']"
-          register: host_query
+          register: device_query_pages
+          loop: "{{ device_pages }}"
 
         - name: Set agent facts
           ansible.builtin.set_fact:
-            falcon_host_data: "{{ host_query.json.resources }}"
+            falcon_host_data: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ device_query_head.json.resources }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+            _pages: "{{ device_query_pages.results | default([]) }}"
+
+        - name: Debug registered agents
+          ansible.builtin.debug:
+            var: falcon_host_data
+
+        - name: Set agent id facts
+          ansible.builtin.set_fact:
+            agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
+
+        - name: Debug playbook agents
+          ansible.builtin.debug:
+            var: agent_ids
 
         - name: Verify agent facts
           ansible.builtin.assert:
-            that:
-              - falcon_host_data is not none
-              - falcon_host_data | length == 1
+            that: agent_id in falcon_host_data
             fail_msg: "Host query returned unexpected results: {{ falcon_host_data }}"
 
-        - name: Verify group registrations
+        - name: Query group registrations
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group.id }}"
             follow_redirects: "{{ falcon_api_redirect }}"
@@ -98,10 +130,16 @@
               Authorization: "Bearer {{ api_token }}"
           vars:
             _group: "{{ group_data | first }}"
-            _group_members: "{{ group_members_query.json.resources | sort }}"
-            _agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | sort | list }}"
           register: group_members_query
-          run_once: true
-          until: _agent_ids == _group_members
-          retries: 5
-          delay: 60
+
+        - name: Set group registration facts
+          ansible.builtin.set_fact:
+            group_members: "{{ group_members_query.json.resources }}"
+
+        - name: Debug group registrations
+          ansible.builtin.debug:
+            var: group_members
+
+        - name: Verify group registrations
+          ansible.builtin.assert:
+            that: agent_ids | ansible.builtin.symmetric_difference(group_members) | length == 0
