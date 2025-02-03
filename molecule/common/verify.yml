@@ -60,6 +60,10 @@
       ansible.builtin.set_fact:
         agent_id: "{{ agent_info_query.falconctl_info.aid }}"
 
+    - name: Debug agent id
+      ansible.builtin.debug:
+        var: agent_id
+
     - name: Verify Falcon agents
       delegate_to: localhost
       block:
