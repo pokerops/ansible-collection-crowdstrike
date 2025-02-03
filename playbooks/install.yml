@@ -44,7 +44,7 @@
         var: agent_id
 
     - name: Register agents to group
-      run_once: true
+      when: inventory_hostname == ansible_play_hosts[0]
       block:
         - name: Query registered groups
           ansible.builtin.uri:
@@ -257,5 +257,6 @@
                   value: "(device_id:{{ group_members_stale | to_json }})"
               ids:
                 - "{{ group_id }}"
-          when: group_members_stale | length > 0
-          run_once: true
+          when:
+            - group_members_stale | length > 0
+            - inventory_hostname == ansible_play_hosts[0]

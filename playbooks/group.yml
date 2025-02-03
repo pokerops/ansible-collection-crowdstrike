@@ -5,7 +5,7 @@
   tasks:
     - name: Manage Falcon console group
       delegate_to: localhost
-      run_once: true
+      when: inventory_hostname == ansible_play_hosts[0]
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -131,8 +131,9 @@
                           value: "(device_id:{{ group_members | to_json }})"
                       ids:
                         - "{{ group_id }}"
-                  when: group_members | length > 0
-                  run_once: true
+                  when:
+                    - group_members | length > 0
+                    - inventory_hostname == ansible_play_hosts[0]
 
                 - name: Query prevention policies
                   ansible.builtin.uri:

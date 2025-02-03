@@ -45,7 +45,7 @@
               client_secret: "{{ falcon_client_secret }}"
             status_code: 201
           register: auth_response
-          run_once: true
+          when: inventory_hostname == ansible_play_hosts[0]
           delegate_to: localhost
 
         - name: Set auth facts

@@ -10,7 +10,7 @@
   gather_facts: false
   tasks:
     - name: Verify group
-      run_once: true
+      when: inventory_hostname == ansible_play_hosts[0]
       delegate_to: localhost
       block:
         - name: Get Crowdstrike Authentication Token
