@@ -3,29 +3,24 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: End play for active hosts
-      ansible.builtin.meta: end_play
-      when: falcon_host_state == 'present'
-
-    - name: Ping host
-      ansible.builtin.ping:
-      register: host_facts
-      ignore_unreachable: true
-
-    - name: End play for unreachable hosts
-      ansible.builtin.meta: end_host
-      when: host_facts is unreachable
-
-    - name: Gather host facts
-      ansible.builtin.setup:
-
-    - name: Undeploy agent
-      ansible.builtin.include_role:
-        name: crowdstrike.falcon.falcon_uninstall
+    - name: Uninstall agent
       when: falcon_host_state == 'absent'
+      block:
+        - name: Ping host
+          ansible.builtin.ping:
+          register: host_facts
+          ignore_unreachable: true
 
-    - name: Reset host unreachable status
-      ansible.builtin.meta: clear_host_errors
+        - name: End play for unreachable hosts
+          ansible.builtin.meta: end_host
+          when: host_facts is unreachable
+
+        - name: Gather host facts
+          ansible.builtin.setup:
+
+        - name: Undeploy agent
+          ansible.builtin.include_role:
+            name: crowdstrike.falcon.falcon_uninstall
 
 - name: Manage Falcon agent registration
   hosts: crowdstrike
@@ -111,7 +106,5 @@
               Authorization: "Bearer {{ api_token }}"
             body_format: json
             body:
-              ids: "{{ device_ids }}"
-          vars:
-            device_ids: "{{ device_list }}"
+              ids: "{{ device_list }}"
           when: device_list | length > 0
