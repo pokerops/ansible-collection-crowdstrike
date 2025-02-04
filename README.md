@@ -12,9 +12,9 @@ An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published
 
 ## Collection hostgroups
 
-| Hostgroup   | Default | Description               |
-| :---------- | ------: | :------------------------ |
-| crowdstrike |   'n/a' | Target Crowdstrike agents |
+| Hostgroup         |       Default | Description               |
+| :---------------- | ------------: | :------------------------ |
+| crowdstrike_group | 'crowdstrike' | Target Crowdstrike agents |
 
 ## Collection playbooks
 
