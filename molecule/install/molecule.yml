@@ -7,13 +7,13 @@ dependency:
 driver:
   name: default
 platforms:
-  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-01
+  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-${MOLECULE_KVM_DISTRO}-01
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     mem: 4
     groups:
       - crowdstrike
-  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-02
+  - name: crowdstrike-${MOLECULE_SCENARIO_NAME}-${MOLECULE_KVM_DISTRO}-02
     image: "${MOLECULE_KVM_IMAGE}"
     cpu: 2
     mem: 4
@@ -37,7 +37,7 @@ provisioner:
     group_vars:
       all:
         libvirt_platforms: "{{ molecule_yml.platforms }}"
-        falcon_group: molecule
+        falcon_group: "molecule_${MOLECULE_SCENARIO_NAME}_${MOLECULE_KVM_DISTRO}"
         falcon_client_id: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_ID') }}"
         falcon_client_secret: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_SECRET') }}"
         falcon_api_enable_no_log: false # do not enable this in production
@@ -53,10 +53,11 @@ scenario:
   cleanup_sequence:
     - cleanup
   test_sequence:
-    - side_effect
+    - destroy
     - dependency
     - create
     - prepare
     - converge
     - verify
     - side_effect
+    - destroy

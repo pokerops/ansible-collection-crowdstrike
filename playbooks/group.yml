@@ -5,7 +5,7 @@
   tasks:
     - name: Manage Falcon console group
       delegate_to: localhost
-      run_once: true
+      when: inventory_hostname == ansible_play_hosts[0]
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -20,7 +20,7 @@
           register: auth_response
 
         - name: Set auth facts
-          set_fact:
+          ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
           no_log: true
 
@@ -29,19 +29,22 @@
           block:
             - name: Query Falcon group
               ansible.builtin.uri:
-                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1"
+                url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
                 follow_redirects: "{{ falcon_api_redirect }}"
                 method: GET
                 headers:
                   Authorization: "Bearer {{ api_token }}"
-                body_format: form-urlencoded
-                body:
-                  filter: "filter=name:{{ falcon_group }}"
+              vars:
+                _filter: "name:'{{ falcon_group }}'"
               register: group_query
 
             - name: Set group facts
               ansible.builtin.set_fact:
                 falcon_group_data: "{{ group_query.json.resources | default([]) }}"
+
+            - name: Debug group facts
+              ansible.builtin.debug:
+                var: falcon_group_data
 
             - name: Check group query
               ansible.builtin.assert:
@@ -90,16 +93,51 @@
                     method: GET
                     headers:
                       Authorization: "Bearer {{ api_token }}"
-                  register: group_members_query
+                  register: group_members_query_head
+
+                - name: Set pagination facts
+                  ansible.builtin.set_fact:
+                    group_members_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+                    group_members_limit: "{{ _pagination.limit }}"
+                  vars:
+                    _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
+                - name: Paginate agent query
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  register: group_members_query_pages
+                  loop: "{{ group_members_pages }}"
 
                 - name: Set group members facts
                   ansible.builtin.set_fact:
-                    group_members: "{{ group_members_query.json.resources }}"
+                    group_members: "{{ _head + _tail }}"
+                  vars:
+                    _head: "{{ group_members_query_head.json.resources }}"
+                    _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+                    _pages: "{{ group_members_query_pages.results | default([]) }}"
 
-                - name: Check group members
-                  ansible.builtin.assert:
-                    that: group_members | length == 0
-                    fail_msg: "Group has active registered members"
+                - name: Drop members from group
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=remove-hosts"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    status_code: [200, 404]
+                    method: POST
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                    body_format: json
+                    body:
+                      action_parameters:
+                        - name: filter
+                          value: "(device_id:{{ group_members | to_json }})"
+                      ids:
+                        - "{{ group_id }}"
+                  when:
+                    - group_members | length > 0
+                    - inventory_hostname == ansible_play_hosts[0]
 
                 - name: Query prevention policies
                   ansible.builtin.uri:
@@ -210,6 +248,7 @@
                   ansible.builtin.uri:
                     url: "{{ falcon_api_base }}/devices/entities/host-groups/v1?ids={{ group_id }}"
                     follow_redirects: "{{ falcon_api_redirect | default(False) }}"
+                    status_code: [200, 404]
                     method: DELETE
                     headers:
                       Authorization: "Bearer {{ api_token }}"

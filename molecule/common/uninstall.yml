@@ -4,3 +4,89 @@
   vars:
     falcon_group_state: absent
     falcon_host_state: absent
+
+- name: Verify assert destruction
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: Verify group
+      when: inventory_hostname == ansible_play_hosts[0]
+      delegate_to: localhost
+      block:
+        - name: Get Crowdstrike Authentication Token
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/oauth2/token"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: "{{ falcon_client_id }}"
+              client_secret: "{{ falcon_client_secret }}"
+            status_code: 201
+          register: auth_response
+
+        - name: Set auth facts
+          set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          no_log: true
+
+        - name: Query registered agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
+          register: device_query_head
+
+        - name: Set pagination facts
+          ansible.builtin.set_fact:
+            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ device_query_head.json.meta.pagination }}"
+
+        - name: Paginate agent query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ device_limit }}&offset={{ item }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
+          register: device_query_pages
+          loop: "{{ device_pages }}"
+
+        - name: Set agent facts
+          ansible.builtin.set_fact:
+            device_list: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ device_query_head.json.resources }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+            _pages: "{{ device_query_pages.results | default([]) }}"
+
+        - name: Verify agent removal
+          ansible.builtin.assert:
+            that: device_list | length == 0
+            fail_msg: "Host query returned unexpected results: {{ device_list }}"
+
+        - name: Query registered groups
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _filter: "name:'{{ falcon_group }}'"
+          register: group_query
+
+        - name: Verify group removal
+          ansible.builtin.assert:
+            that: group_data | length == 0
+            fail_msg: "Group query returned unexpected results: {{ group_data }}"
+          vars:
+            group_data: "{{ group_query.json.resources | default([]) }}"

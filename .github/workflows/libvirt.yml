@@ -14,12 +14,15 @@ jobs:
       matrix:
         scenario:
           - install
-          - destroy
         image:
-          - https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
-          - https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
-          - https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
-          - https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+          - distro: jammy
+            url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+          - distro: noble
+            url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+          - distro: bookworm
+            url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+          - distro: rocky9
+            url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
     steps:
       - name: Check out the codebase
         uses: actions/checkout@v4
@@ -47,7 +50,8 @@ jobs:
       - name: Run molecule tests.
         run: make test
         env:
-          MOLECULE_KVM_IMAGE: ${{ matrix.image.name }}
+          MOLECULE_KVM_DISTRO: ${{ matrix.image.distro }}
+          MOLECULE_KVM_IMAGE: ${{ matrix.image.url }}
           MOLECULE_SCENARIO: ${{ matrix.scenario }}
           CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
           CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}

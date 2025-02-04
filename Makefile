@@ -1,7 +1,9 @@
 .PHONY: ${MAKECMDGOALS}
 
+PKGMAN = $$(if [ "$(HOST_DISTRO)" = "fedora" ]; then echo "dnf" ; else echo "apt-get"; fi)
 MOLECULE_SCENARIO ?= install
-MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+MOLECULE_KVM_DISTRO ?= jammy
+MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/${MOLECULE_KVM_DISTRO}/current/${MOLECULE_KVM_DISTRO}-server-cloudimg-amd64.img
 GALAXY_API_KEY ?=
 GITHUB_REPOSITORY ?= $$(git config --get remote.origin.url | cut -d':' -f 2 | cut -d. -f 1)
 GITHUB_ORG = $$(echo ${GITHUB_REPOSITORY} | cut -d/ -f 1)
@@ -16,27 +18,35 @@ COLLECTION_VERSION = $$(yq '.version' < galaxy.yml)
 all: install version lint test
 
 test: lint
+	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
 install:
 	@type poetry >/dev/null || pip3 install poetry
+	@poetry self add poetry-plugin-export
 	@type yq >/dev/null || sudo apt-get install -y yq
-	@sudo apt-get install -y libvirt-dev network-manager
+	@type expect >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y expect
+	@type nmcli >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo NetworkManager; else echo network-manager; fi)
+	@sudo ${PKGMAN} install -y xfsprogs gpg
+	@sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo libvirt-devel; else echo libvirt-dev; fi)
 	@poetry install --no-root
 
 lint: install
 	poetry run yamllint .
-	poetry run ansible-lint .
 	poetry run ansible-lint playbooks/
 
 requirements: install
-	@yq '.roles[].name' =r < roles.yml | xargs -I {} rm -rf roles/{}
 	@python --version
-	@poetry run ansible-galaxy role install \
-		--force --no-deps \
-		--roles-path ${ROLE_DIR} \
-		--role-file ${ROLE_FILE}
+	@if [ -f ${ROLE_FILE} ]; then \
+		yq '.roles[].name' -r < ${ROLE_FILE} | xargs -rI {} rm -rf roles/{} ; \
+	fi
+	@if [ -f ${ROLE_FILE} ]; then \
+		poetry run ansible-galaxy role install \
+			--force --no-deps \
+			--roles-path ${ROLE_DIR} \
+			--role-file ${ROLE_FILE} ; \
+	fi
 	@poetry run ansible-galaxy collection install \
 		--force-with-deps .
 	@\find ./ -name "*.ymle*" -delete
@@ -45,6 +55,7 @@ build: requirements
 	@poetry run ansible-galaxy collection build --force
 
 dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
+	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
@@ -54,7 +65,6 @@ ifeq (login,$(firstword $(MAKECMDGOALS)))
 endif
 
 login:
-	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO} ${LOGIN_ARGS}
 
 ignore:
@@ -71,4 +81,4 @@ version:
 	@poetry run molecule --version
 
 debug: version
-	@poetry export --dev --without-hashes
+	@poetry export --dev --without-hashes || exit 0

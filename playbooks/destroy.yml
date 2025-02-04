@@ -3,38 +3,29 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: End play for active hosts
-      ansible.builtin.meta: end_play
-      when: falcon_host_state == 'present'
-
-    - name: Ping host
-      ansible.builtin.ping:
-      register: host_facts
-      ignore_unreachable: true
-
-    - name: End play for unreachable hosts
-      ansible.builtin.meta: end_host
-      when: host_facts is unreachable
-
-    - name: Gather host facts
-      ansible.builtin.setup:
-
-    - name: Undeploy agent
-      ansible.builtin.include_role:
-        name: crowdstrike.falcon.falcon_uninstall
+    - name: Uninstall agent
       when: falcon_host_state == 'absent'
+      block:
+        - name: Ping host
+          ansible.builtin.ping:
+          register: host_facts
+          ignore_unreachable: true
 
-    - name: Reset host unreachable status
-      ansible.builtin.meta: clear_host_errors
+        - name: End play for unreachable hosts
+          ansible.builtin.meta: end_host
+          when: host_facts is unreachable
+
+        - name: Gather host facts
+          ansible.builtin.setup:
+
+        - name: Undeploy agent
+          ansible.builtin.include_role:
+            name: crowdstrike.falcon.falcon_uninstall
 
 - name: Manage Falcon agent registration
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: End play for active hosts
-      ansible.builtin.meta: end_play
-      when: falcon_host_state == 'present'
-
     - name: Manage stale agents
       delegate_to: localhost
       when: falcon_host_state == 'absent'
@@ -50,7 +41,6 @@
               client_secret: "{{ falcon_client_secret }}"
             status_code: 201
           register: auth_response
-          run_once: true
           delegate_to: localhost
 
         - name: Set auth facts
@@ -60,14 +50,14 @@
 
         - name: Query registered agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ falcon_api_page_size }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
             body_format: form-urlencoded
-            body:
-              filter: "hostname:{{ inventory_hostname }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
           register: device_query_head
 
         - name: Set pagination facts
@@ -79,14 +69,13 @@
 
         - name: Paginate agent query
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?limit={{ device_limit }}&offset={{ item }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
-            body_format: form-urlencoded
-            body:
-              filter: "hostname:{{ inventory_hostname }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
           register: device_query_pages
           loop: "{{ device_pages }}"
 
@@ -98,6 +87,10 @@
             _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ device_query_pages.results | default([]) }}"
 
+        - name: Debug stale agents
+          ansible.builtin.debug:
+            msg: "Pruning stale devices {{ device_list }}"
+
         - name: Unregister stale agents
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
@@ -108,7 +101,5 @@
               Authorization: "Bearer {{ api_token }}"
             body_format: json
             body:
-              ids: "{{ device_ids }}"
-          vars:
-            device_ids: "{{ device_list }}"
+              ids: "{{ device_list }}"
           when: device_list | length > 0
