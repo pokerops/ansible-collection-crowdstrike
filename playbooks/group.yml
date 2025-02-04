@@ -42,6 +42,10 @@
               ansible.builtin.set_fact:
                 falcon_group_data: "{{ group_query.json.resources | default([]) }}"
 
+            - name: Debug group facts
+              ansible.builtin.debug:
+                var: falcon_group_data
+
             - name: Check group query
               ansible.builtin.assert:
                 that: falcon_group_data | length in [0, 1]

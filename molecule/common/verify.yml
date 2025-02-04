@@ -49,6 +49,10 @@
               - group_data | length == 1
             fail_msg: "Group query returned unexpected results: {{ group_data }}"
 
+        - name: Debug group facts
+          ansible.builtin.debug:
+            var: group_data
+
     - name: Query agent id
       crowdstrike.falcon.falconctl_info:
         name:

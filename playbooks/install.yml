@@ -107,6 +107,10 @@
           ansible.builtin.set_fact:
             agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
 
+        - name: Debug agent ids
+          ansible.builtin.debug:
+            var: agent_ids
+
         - name: Set global agend ids
           ansible.builtin.set_fact:
             agent_ids: "{{ agent_ids }}"
@@ -115,7 +119,7 @@
 
         - name: Register agents to group - attempt 1
           block:
-            - name: Register agents to group
+            - name: Register agents to group - attempt 1
               ansible.builtin.uri:
                 url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=add-hosts"
                 follow_redirects: "{{ falcon_api_redirect }}"
@@ -144,6 +148,10 @@
                 _filter: "device_id:[{{ _agent_ids | join(',') }}]"
               register: group_members_query
 
+            - name: Debug agent group registrations
+              ansible.builtin.debug:
+                msg: "{{ group_members_query.json.resources }}"
+
             - name: Verify agent group registrations
               ansible.builtin.fail:
                 msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
@@ -158,7 +166,7 @@
 
             - name: Register agents to group - attempt 2
               block:
-                - name: Register agents to group
+                - name: Register agents to group - attempt 2
                   ansible.builtin.uri:
                     url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=add-hosts"
                     follow_redirects: "{{ falcon_api_redirect }}"
@@ -187,6 +195,10 @@
                     _filter: "device_id:[{{ _agent_ids | join(',') }}]"
                   register: group_members_query
 
+                - name: Debug agent group registrations
+                  ansible.builtin.debug:
+                    msg: "{{ group_members_query.json.resources }}"
+
                 - name: Verify agent group registrations
                   ansible.builtin.fail:
                     msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
@@ -201,7 +213,7 @@
 
                 - name: Register agents to group - attempt 3
                   block:
-                    - name: Register agents to group
+                    - name: Register agents to group - attempt 3
                       ansible.builtin.uri:
                         url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=add-hosts"
                         follow_redirects: "{{ falcon_api_redirect }}"
@@ -229,6 +241,10 @@
                         _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
                         _filter: "device_id:[{{ _agent_ids | join(',') }}]"
                       register: group_members_query
+
+                    - name: Debug agent group registrations
+                      ansible.builtin.debug:
+                        msg: "{{ group_members_query.json.resources }}"
 
                     - name: Verify agent group registrations
                       ansible.builtin.assert:
