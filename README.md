@@ -23,26 +23,29 @@ An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published
 
 ## Configuration Parameters
 
-The following parameters can be configured (defaults shown):
+The following parameters control the behavior of the collection playbooks:
 
-### API Configuration
+### API Settings
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `falcon_api_base` | Base URL for CrowdStrike API | https://api.crowdstrike.com |
+| `falcon_api_page_size` | Number of items per API page | 50 |
+| `falcon_api_redirect` | Allow API redirects | true |
+| `falcon_api_poll_interval` | Seconds between API retry attempts | 60 |
+| `falcon_api_poll_retries` | Maximum number of API retries | 10 |
 
-- `falcon_api_base`: Base URL for CrowdStrike API (default: https://api.crowdstrike.com)
-- `falcon_api_page_size`: Number of items per API page (default: 50)
-- `falcon_api_redirect`: Whether to allow API redirects (default: true)
-- `falcon_api_poll_interval`: Interval in seconds between API retries (default: 60)
-- `falcon_api_poll_retries`: Maximum number of API retry attempts (default: 10)
+### Agent Settings
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `falcon_host_state` | Desired state of Falcon agent | present |
+| `falcon_agent_version_decrement` | Version offset for agent installation | 2 |
 
-### Agent Configuration
-
-- `falcon_host_state`: Desired state of the Falcon host agent (default: present)
-- `falcon_agent_version_decrement`: Version decrement for agent installation (default: 2)
-
-### Group Configuration
-
-- `falcon_group_state`: Desired state of Falcon host groups (default: present)
-- `falcon_group_update`: Whether to update existing groups (default: false)
-- `falcon_group_tag`: Tag to assign to host group (defaults to group name)
+### Group Settings
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `falcon_group_state` | Desired state of host groups | present |
+| `falcon_group_update` | Whether to update existing groups | false |
+| `falcon_group_tag` | Tag to assign to host group | group name |
 
 ## Testing
 
