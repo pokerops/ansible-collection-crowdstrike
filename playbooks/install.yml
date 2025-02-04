@@ -73,6 +73,12 @@
           vars:
             _group: "{{ falcon_group_data | first }}"
 
+        - name: Set global group facts
+          ansible.builtin.set_fact:
+            group_id: "{{ group_id }}"
+          delegate_to: localhost
+          delegate_facts: true
+
         - name: Aggregate agent ids
           ansible.builtin.set_fact:
             agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
@@ -204,6 +210,10 @@
     - name: Manage stale agent registrations
       when: ansible_play_hosts == groups['crowdstrike']
       block:
+        - debug: Set agent id facts
+          ansible.bultin.set_fact:
+            agent_id: "{{ hostvars['localhost']['group_id'] }}"
+
         - name: Query group members
           ansible.builtin.uri:
             url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&limit={{ falcon_api_page_size }}"

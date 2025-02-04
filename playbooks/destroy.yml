@@ -26,10 +26,6 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: End play for active hosts
-      ansible.builtin.meta: end_play
-      when: falcon_host_state == 'present'
-
     - name: Manage stale agents
       delegate_to: localhost
       when: falcon_host_state == 'absent'
