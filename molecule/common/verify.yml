@@ -136,10 +136,11 @@
                   Authorization: "Bearer {{ api_token }}"
               vars:
                 _group: "{{ group_data | first }}"
+                _members: "{{ group_members_query.json.resources }}"
               register: group_members_query
               retries: 5
               delay: 10
-              until: agent_ids | ansible.builtin.symmetric_difference(group_members) | length == 0
+              until: agent_ids | ansible.builtin.symmetric_difference(_members) | length == 0
 
           rescue:
             - name: Set group registration facts
