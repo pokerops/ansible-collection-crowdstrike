@@ -1,5 +1,5 @@
 ---
-- name: Import install playbook
+- name: Import Crowdstrike deploy playbook
   ansible.builtin.import_playbook: pokerops.crowdstrike.deploy
   vars:
     falcon_group_state: present

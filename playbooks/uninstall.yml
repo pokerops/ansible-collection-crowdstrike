@@ -1,17 +1,34 @@
 ---
-- name: Import Crowdstrike destroy playbook
-  ansible.builtin.import_playbook: pokerops.crowdstrike.destroy
-  vars:
-    falcon_group_state: absent
-    falcon_host_state: absent
-
-- name: Verify assert destruction
+- name: Manage Falcon agent installation
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: Verify group
-      when: inventory_hostname == ansible_play_hosts[0]
+    - name: Uninstall agent
+      when: falcon_host_state == 'absent'
+      block:
+        - name: Ping host
+          ansible.builtin.ping:
+          register: host_facts
+          ignore_unreachable: true
+
+        - name: End play for unreachable hosts
+          ansible.builtin.meta: end_host
+          when: host_facts is unreachable
+
+        - name: Gather host facts
+          ansible.builtin.setup:
+
+        - name: Undeploy agent
+          ansible.builtin.include_role:
+            name: crowdstrike.falcon.falcon_uninstall
+
+- name: Manage Falcon agent registration
+  hosts: crowdstrike
+  gather_facts: false
+  tasks:
+    - name: Manage stale agents
       delegate_to: localhost
+      when: falcon_host_state == 'absent'
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -24,9 +41,10 @@
               client_secret: "{{ falcon_client_secret }}"
             status_code: 201
           register: auth_response
+          delegate_to: localhost
 
         - name: Set auth facts
-          set_fact:
+          ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
           no_log: true
 
@@ -37,6 +55,7 @@
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
           vars:
             _filter: "hostname:['{{ inventory_hostname }}']"
           register: device_query_head
@@ -50,7 +69,7 @@
 
         - name: Paginate agent query
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ device_limit }}&offset={{ item }}"
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
@@ -68,25 +87,19 @@
             _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ device_query_pages.results | default([]) }}"
 
-        - name: Verify agent removal
-          ansible.builtin.assert:
-            that: device_list | length == 0
-            fail_msg: "Host query returned unexpected results: {{ device_list }}"
+        - name: Debug stale agents
+          ansible.builtin.debug:
+            msg: "Pruning stale devices {{ device_list }}"
 
-        - name: Query registered groups
+        - name: Unregister stale agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
+            url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
             follow_redirects: "{{ falcon_api_redirect }}"
-            method: GET
+            method: POST
+            status_code: [202, 409]
             headers:
               Authorization: "Bearer {{ api_token }}"
-          vars:
-            _filter: "name:'{{ falcon_group }}'"
-          register: group_query
-
-        - name: Verify group removal
-          ansible.builtin.assert:
-            that: group_data | length == 0
-            fail_msg: "Group query returned unexpected results: {{ group_data }}"
-          vars:
-            group_data: "{{ group_query.json.resources | default([]) }}"
+            body_format: json
+            body:
+              ids: "{{ device_list }}"
+          when: device_list | length > 0
