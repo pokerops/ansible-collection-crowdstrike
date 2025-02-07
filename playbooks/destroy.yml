@@ -10,3 +10,4 @@
 
 - name: Destroy Falcon group
   ansible.builtin.import_playbook: pokerops.crowdstrike.group
+  when: falcon_group_manage | bool

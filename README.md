@@ -12,9 +12,9 @@ An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published
 
 ## Collection hostgroups
 
-| Hostgroup         |       Default | Description               |
-| :---------------- | ------------: | :------------------------ |
-| crowdstrike_group | 'crowdstrike' | Target Crowdstrike agents |
+| Hostgroup   | Description               |
+| :---------- | ------------------------- |
+| crowdstrike | Target Crowdstrike agents |
 
 ## Collection playbooks
 
@@ -44,11 +44,10 @@ The following parameters control the behavior of the collection playbooks:
 
 ### Group Settings
 
-| Parameter             | Description                       | Default    |
-| --------------------- | --------------------------------- | ---------- |
-| `falcon_group_state`  | Desired state of host groups      | present    |
-| `falcon_group_update` | Whether to update existing groups | false      |
-| `falcon_group_tag`    | Tag to assign to host group       | group name |
+| Parameter             | Description                  | Default |
+| --------------------- | ---------------------------- | ------- |
+| `falcon_group_state`  | Desired state of host groups | present |
+| `falcon_group_manage` | Enable state management      | true    |
 
 ## Testing
 

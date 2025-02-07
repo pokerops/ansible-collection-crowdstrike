@@ -1,6 +1,6 @@
 ---
 - name: Validate Falcon install params
-  hosts: "{{ crowdstrike_group | default('crowdstrike') }}"
+  hosts: crowdstrike
   gather_facts: false
   tasks:
     - name: Check falcon_group_state vardef

@@ -37,15 +37,10 @@
       ansible.builtin.set_fact:
         _falcon_group_state: "{{ falcon_group_state }}"
 
-    - name: Set group update default
+    - name: Set group manage default
       ansible.builtin.set_fact:
-        falcon_group_update: false
-      when: falcon_group_update is not defined
-
-    - name: Set group tag default
-      ansible.builtin.set_fact:
-        falcon_group_tag: "{{ falcon_group }}"
-      when: falcon_group_tag is not defined
+        falcon_group_manage: false
+      when: falcon_group_manage is not defined
 
     - name: Set api retry interval default
       ansible.builtin.set_fact:
