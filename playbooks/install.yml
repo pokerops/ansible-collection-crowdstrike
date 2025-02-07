@@ -254,7 +254,9 @@
                         _registrations: "{{ group_members_query.json.resources }}"
 
     - name: Manage stale agent registrations
-      when: ansible_play_hosts | symmetric_difference(groups['crowdstrike']) | length == 0
+      when:
+        - falcon_group_manage | bool
+        - ansible_play_hosts | symmetric_difference(groups['crowdstrike']) | length == 0
       block:
         - name: Set auth facts
           ansible.builtin.set_fact:

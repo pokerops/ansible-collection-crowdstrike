@@ -129,20 +129,16 @@
           block:
             - name: Query group registrations
               ansible.builtin.uri:
-                url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group.id }}"
+                url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}"
                 follow_redirects: "{{ falcon_api_redirect }}"
                 method: GET
                 headers:
                   Authorization: "Bearer {{ api_token }}"
               vars:
                 _group: "{{ group_data | first }}"
-                _members: "{{ group_members_query.json.resources }}"
+                _group_id: "{{ _group.id }}"
               register: group_members_query
-              retries: 5
-              delay: 10
-              until: agent_ids | ansible.builtin.symmetric_difference(_members) | length == 0
 
-          rescue:
             - name: Set group registration facts
               ansible.builtin.set_fact:
                 group_members: "{{ group_members_query.json.resources }}"
@@ -151,6 +147,7 @@
               ansible.builtin.debug:
                 var: group_members
 
-            - name: Fail group registration verifications
-              ansible.builtin.fail:
-                msg: "Group membership verification failed, expected: {{ agent_ids }}, got: {{ group_members }}"
+            - name: Verify group registrations
+              ansible.builtin.verify:
+                that: agent_ids | ansible.builtin.symmetric_difference(group_members) | length == 0
+                fail_msg: "Group membership verification failed, expected: {{ agent_ids }}, got: {{ group_members }}"

@@ -47,7 +47,7 @@ The following parameters control the behavior of the collection playbooks:
 | Parameter             | Description                  | Default |
 | --------------------- | ---------------------------- | ------- |
 | `falcon_group_state`  | Desired state of host groups | present |
-| `falcon_group_manage` | Enable state management      | true    |
+| `falcon_group_manage` | Enable group management      | true    |
 
 ## Testing
 
