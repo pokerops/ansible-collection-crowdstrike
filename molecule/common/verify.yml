@@ -127,7 +127,7 @@
 
         - name: Query group registrations
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}"
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_id }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
