@@ -39,7 +39,7 @@
 
     - name: Set group manage default
       ansible.builtin.set_fact:
-        falcon_group_manage: false
+        falcon_group_manage: true
       when: falcon_group_manage is not defined
 
     - name: Set api retry interval default
