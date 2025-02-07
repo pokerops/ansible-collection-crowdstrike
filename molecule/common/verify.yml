@@ -127,12 +127,15 @@
 
         - name: Query group registrations
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_id }}"
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_id }}&filter={{ _filter }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
           vars:
+            _format: "'%s'"
+            _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
+            _filter: "device_id:[{{ _agent_ids | join(',') }}]"
             _group: "{{ group_data | first }}"
             _group_id: "{{ _group.id }}"
           register: group_members_query
