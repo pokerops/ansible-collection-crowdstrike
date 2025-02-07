@@ -125,29 +125,27 @@
             that: agent_id in falcon_host_data
             fail_msg: "Host query returned unexpected results: {{ falcon_host_data }}"
 
+        - name: Query group registrations
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _group: "{{ group_data | first }}"
+            _group_id: "{{ _group.id }}"
+          register: group_members_query
+
+        - name: Set group registration facts
+          ansible.builtin.set_fact:
+            group_members: "{{ group_members_query.json.resources }}"
+
+        - name: Debug group registrations
+          ansible.builtin.debug:
+            var: group_members
+
         - name: Verify group registrations
-          block:
-            - name: Query group registrations
-              ansible.builtin.uri:
-                url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}"
-                follow_redirects: "{{ falcon_api_redirect }}"
-                method: GET
-                headers:
-                  Authorization: "Bearer {{ api_token }}"
-              vars:
-                _group: "{{ group_data | first }}"
-                _group_id: "{{ _group.id }}"
-              register: group_members_query
-
-            - name: Set group registration facts
-              ansible.builtin.set_fact:
-                group_members: "{{ group_members_query.json.resources }}"
-
-            - name: Debug group registrations
-              ansible.builtin.debug:
-                var: group_members
-
-            - name: Verify group registrations
-              ansible.builtin.verify:
-                that: agent_ids | ansible.builtin.symmetric_difference(group_members) | length == 0
-                fail_msg: "Group membership verification failed, expected: {{ agent_ids }}, got: {{ group_members }}"
+          ansible.builtin.assert:
+            that: agent_ids | ansible.builtin.symmetric_difference(group_members) | length == 0
+            fail_msg: "Group membership verification failed, expected: {{ agent_ids }}, got: {{ group_members }}"
