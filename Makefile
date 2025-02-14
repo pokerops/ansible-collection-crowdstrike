@@ -11,24 +11,18 @@ GITHUB_REPO = $$(echo ${GITHUB_REPOSITORY} | cut -d/ -f 2)
 REQUIREMENTS = requirements.yml
 ROLE_DIR = roles
 ROLE_FILE = roles.yml
-COLLECTION_NAMESPACE = $$(yq '.namespace' < galaxy.yml)
-COLLECTION_NAME = $$(yq '.name' < galaxy.yml)
-COLLECTION_VERSION = $$(yq '.version' < galaxy.yml)
+COLLECTION_NAMESPACE = $$(yq '.namespace' < galaxy.yml -r)
+COLLECTION_NAME = $$(yq '.name' < galaxy.yml -r)
+COLLECTION_VERSION = $$(yq '.version' < galaxy.yml -r)
 
 all: install version lint test
 
-test: lint
+test: requirements
 	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	poetry run molecule $@ -s ${MOLECULE_SCENARIO}
 
 install:
-	@type poetry >/dev/null || pip3 install poetry
-	@poetry self add poetry-plugin-export
-	@type yq >/dev/null || sudo apt-get install -y yq
-	@type expect >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y expect
-	@type nmcli >/dev/null 2>/dev/null || sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo NetworkManager; else echo network-manager; fi)
-	@sudo ${PKGMAN} install -y xfsprogs gpg
 	@sudo ${PKGMAN} install -y $$(if [[ "${HOST_DISTRO}" == "fedora" ]]; then echo libvirt-devel; else echo libvirt-dev; fi)
 	@poetry install --no-root
 
@@ -80,5 +74,5 @@ publish: build
 version:
 	@poetry run molecule --version
 
-debug: version
+debug: install version
 	@poetry export --dev --without-hashes || exit 0
