@@ -17,4 +17,6 @@ repository: http://github.com/pokerops/ansible-collection-crowdstrike
 documentation: http://github.com/pokerops/ansible-collection-crowdstrike
 homepage: http://github.com/pokerops/ansible-collection-crowdstrike
 issues: http://github.com/pokerops/ansible-collection-crowdstrike/issues
-build_ignore: []
+build_ignore:
+  - .devbox
+  - .venv
