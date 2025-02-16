@@ -254,7 +254,10 @@
                         _registrations: "{{ group_members_query.json.resources }}"
 
     - name: Manage stale agent registrations
-      when: ansible_play_hosts == groups['crowdstrike']
+      when:
+        - falcon_group_manage | bool
+        - ansible_play_hosts | symmetric_difference(groups['crowdstrike']) | length == 0
+        - inventory_hostname == ansible_play_hosts[0]
       block:
         - name: Set auth facts
           ansible.builtin.set_fact:
@@ -296,31 +299,37 @@
 
         - name: Set group members facts
           ansible.builtin.set_fact:
-            group_members: "{{ _head + _tail }}"
+            group_members: "{{ (_head + _tail) | sort }}"
           vars:
             _head: "{{ group_members_query_head.json.resources }}"
             _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ group_members_query_pages.results | default([]) }}"
 
-        - name: Set group member facts
+        - name: Set stale group member facts
           ansible.builtin.set_fact:
-            group_members_stale: "{{ group_members | difference(agent_ids) }}"
+            group_members_stale: "{{ group_members | difference(agent_ids) | sort }}"
 
-        - name: Drop stale members from group
+        - name: Debug agent ids
+          ansible.builtin.debug:
+            var: agent_ids
+
+        - name: Debug group members
+          ansible.builtin.debug:
+            var: group_members
+
+        - name: Debug stale group members
+          ansible.builtin.debug:
+            var: group_members_stale
+
+        - name: Unregister stale agents
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/entities/host-group-actions/v1?action_name=remove-hosts"
+            url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
             follow_redirects: "{{ falcon_api_redirect }}"
-            status_code: [200, 404]
             method: POST
+            status_code: [202, 409]
             headers:
               Authorization: "Bearer {{ api_token }}"
             body_format: json
             body:
-              action_parameters:
-                - name: filter
-                  value: "(device_id:{{ group_members_stale | to_json }})"
-              ids:
-                - "{{ group_id }}"
-          when:
-            - group_members_stale | length > 0
-            - inventory_hostname == ansible_play_hosts[0]
+              ids: "{{ group_members_stale }}"
+          when: group_members_stale | length > 0

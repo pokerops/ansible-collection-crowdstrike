@@ -1,7 +1,7 @@
 # Ansible Collection - pokerops.crowdstrike
 
-[![Build Status](https://github.com/nephelaiio/ansible-collection-libvirt/actions/workflows/libvirt.yml/badge.svg)](https://github.com/nephelaiio/ansible-collection-libvirt/actions/wofklows/libvirt.yml)
-[![Ansible Galaxy](http://img.shields.io/badge/ansible--galaxy-nephelaiio.libvirt-blue.svg)](https://galaxy.ansible.com/ui/repo/published/nephelaiio/libvirt/)
+[![Build Status](https://github.com/pokerops/ansible-collection-crowdstrike/actions/workflows/libvirt.yml/badge.svg)](https://github.com/pokerops/ansible-collection-crowdstrike/actions/wofklows/libvirt.yml)
+[![Ansible Galaxy](http://img.shields.io/badge/ansible--galaxy-pokerops.crowdstrike.svg)](https://galaxy.ansible.com/ui/repo/published/pokerops/crowdstrike/)
 
 An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published/pokerops/crowdstrike/) for managing [Crowdstrike Falcon](https://www.crowdstrike.com/platform/) deployments.
 
@@ -12,9 +12,9 @@ An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published
 
 ## Collection hostgroups
 
-| Hostgroup   | Default | Description               |
-| :---------- | ------: | :------------------------ |
-| crowdstrike |   'n/a' | Target Crowdstrike agents |
+| Hostgroup   | Description               |
+| :---------- | ------------------------- |
+| crowdstrike | Target Crowdstrike agents |
 
 ## Collection playbooks
 
@@ -44,11 +44,10 @@ The following parameters control the behavior of the collection playbooks:
 
 ### Group Settings
 
-| Parameter             | Description                       | Default    |
-| --------------------- | --------------------------------- | ---------- |
-| `falcon_group_state`  | Desired state of host groups      | present    |
-| `falcon_group_update` | Whether to update existing groups | false      |
-| `falcon_group_tag`    | Tag to assign to host group       | group name |
+| Parameter             | Description                  | Default |
+| --------------------- | ---------------------------- | ------- |
+| `falcon_group_state`  | Desired state of host groups | present |
+| `falcon_group_manage` | Enable group management      | true    |
 
 ## Testing
 
