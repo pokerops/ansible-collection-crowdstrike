@@ -10,10 +10,11 @@
     "gnupg@latest",
     "xfsprogs@latest",
     "gnumake@latest",
-    "yq@latest"
+    "yq@latest",
+    "glibcLocales@latest"
   ],
   "env": {
-    "LANG": "C.UTF-8"
+    "LC_ALL": "C.UTF-8"
   },
   "shell": {
     "init_hook": [],
