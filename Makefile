@@ -17,6 +17,9 @@ COLLECTION_VERSION = $$(yq '.version' < galaxy.yml -r)
 
 all: install version lint test
 
+shell:
+	DEVBOX_USE_VERSION=0.13.1 devbox shell
+
 test: requirements
 	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
