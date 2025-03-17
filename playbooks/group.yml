@@ -22,7 +22,7 @@
         - name: Set auth facts
           ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
-          no_log: true
+          no_log: "{{ falcon_api_no_log }}"
 
         - name: Manage Falcon group
           when: falcon_group is defined

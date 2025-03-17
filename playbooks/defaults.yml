@@ -51,3 +51,8 @@
       ansible.builtin.set_fact:
         falcon_api_poll_retries: 10
       when: falcon_api_poll_retries is not defined
+
+    - name: Set api no log default
+      ansible.builtin.set_fact:
+        falcon_api_no_log: false
+      when: falcon_api_no_log is not defined

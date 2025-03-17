@@ -61,14 +61,14 @@
         - name: Set auth facts
           ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
-          no_log: true
+          no_log: "{{ falcon_api_no_log }}"
 
         - name: Set global auth facts
           ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
           delegate_to: localhost
           delegate_facts: true
-          no_log: true
+          no_log: "{{ falcon_api_no_log }}"
 
         - name: Query registered groups
           ansible.builtin.uri:
