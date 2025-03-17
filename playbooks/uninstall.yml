@@ -42,6 +42,7 @@
             status_code: 201
           register: auth_response
           delegate_to: localhost
+          any_errors_fatal: true
 
         - name: Set auth facts
           ansible.builtin.set_fact:

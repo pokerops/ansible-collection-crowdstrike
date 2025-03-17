@@ -18,6 +18,7 @@
               client_secret: "{{ falcon_client_secret }}"
             status_code: 201
           register: auth_response
+          any_errors_fatal: true
 
         - name: Set auth facts
           ansible.builtin.set_fact:
