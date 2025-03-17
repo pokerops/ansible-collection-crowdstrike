@@ -1,7 +1,7 @@
 # Ansible Collection - pokerops.crowdstrike
 
 [![Build Status](https://github.com/pokerops/ansible-collection-crowdstrike/actions/workflows/libvirt.yml/badge.svg)](https://github.com/pokerops/ansible-collection-crowdstrike/actions/wofklows/libvirt.yml)
-[![Ansible Galaxy](http://img.shields.io/badge/ansible--galaxy-pokerops.crowdstrike.svg)](https://galaxy.ansible.com/ui/repo/published/pokerops/crowdstrike/)
+[![Ansible Galaxy](https://img.shields.io/github/v/tag/pokerops/ansible-collection-crowdstrike)](https://galaxy.ansible.com/ui/repo/published/pokerops/crowdstrike/)
 
 An opinionated [ansible collection](https://galaxy.ansible.com/ui/repo/published/pokerops/crowdstrike/) for managing [Crowdstrike Falcon](https://www.crowdstrike.com/platform/) deployments.
 
