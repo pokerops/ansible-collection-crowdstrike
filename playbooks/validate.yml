@@ -3,6 +3,11 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
+    - name: Check falcon_group vardef
+      ansible.builtin.assert:
+        that: falcon_group is defined
+        fail_msg: falcon_group must be defined
+
     - name: Check falcon_group_state vardef
       ansible.builtin.assert:
         that:
