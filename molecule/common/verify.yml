@@ -24,7 +24,7 @@
         - name: Set auth facts
           set_fact:
             api_token: "{{ auth_response.json.access_token }}"
-          no_log: true
+          no_log: "{{ falcon_api_no_log }}"
 
         - name: Query registered groups
           ansible.builtin.uri:
