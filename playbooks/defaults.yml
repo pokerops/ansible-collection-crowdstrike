@@ -54,5 +54,5 @@
 
     - name: Set api no log default
       ansible.builtin.set_fact:
-        falcon_api_no_log: false
-      when: falcon_api_no_log is not defined
+        falcon_api_enable_no_log: true
+      when: falcon_api_enable_no_log is not defined
