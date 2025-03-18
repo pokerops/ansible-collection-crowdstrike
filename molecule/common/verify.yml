@@ -4,6 +4,7 @@
 
 - name: Verify groups and hosts
   hosts: crowdstrike
+  any_errors_fatal: true
   tasks:
     - name: Verify group
       when: inventory_hostname == ansible_play_hosts[0]
@@ -20,12 +21,11 @@
               client_secret: "{{ falcon_client_secret }}"
             status_code: 201
           register: auth_response
-          any_errors_fatal: true
 
         - name: Set auth facts
           set_fact:
             api_token: "{{ auth_response.json.access_token }}"
-          no_log: "{{ falcon_api_no_log }}"
+          no_log: "{{ falcon_api_enable_no_log }}"
 
         - name: Query registered groups
           ansible.builtin.uri:
