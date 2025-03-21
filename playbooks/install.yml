@@ -7,6 +7,15 @@
       ansible.builtin.meta: end_play
       when: falcon_host_state == 'absent'
 
+    - name: Ping host
+      ansible.builtin.ping:
+      register: host_facts
+      ignore_unreachable: true
+
+    - name: End play for unreachable hosts
+      ansible.builtin.meta: end_host
+      when: host_facts is unreachable
+
     - name: Gather host facts
       ansible.builtin.setup:
 
