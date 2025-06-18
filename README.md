@@ -37,17 +37,19 @@ The following parameters control the behavior of the collection playbooks:
 
 ### Agent Settings
 
-| Parameter                        | Description                           | Default |
-| -------------------------------- | ------------------------------------- | ------- |
-| `falcon_host_state`              | Desired state of Falcon agent         | present |
-| `falcon_agent_version_decrement` | Version offset for agent installation | 2       |
+| Parameter                        | Description                               | Default |
+| -------------------------------- | ----------------------------------------- | ------- |
+| `falcon_host_state`              | Desired state of Falcon agent             | present |
+| `falcon_agent_version_decrement` | Version offset for agent installation     | 2       |
+| `falcon_agent_verify`            | Toggle flag for agent registration checks | true    |
 
 ### Group Settings
 
-| Parameter             | Description                  | Default |
-| --------------------- | ---------------------------- | ------- |
-| `falcon_group_state`  | Desired state of host groups | present |
-| `falcon_group_manage` | Enable group management      | true    |
+| Parameter             | Description                               | Default |
+| --------------------- | ----------------------------------------- | ------- |
+| `falcon_group_state`  | Desired state of host groups              | present |
+| `falcon_group_manage` | Enable group management                   | true    |
+| `falcon_agent_verify` | Toggle flag for group registration checks | true    |
 
 ## Testing
 

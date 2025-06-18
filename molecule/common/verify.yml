@@ -7,7 +7,9 @@
   any_errors_fatal: true
   tasks:
     - name: Verify group
-      when: inventory_hostname == ansible_play_hosts[0]
+      when:
+        - falcon_group_verify | default(True) | bool
+        - inventory_hostname == ansible_play_hosts[0]
       delegate_to: localhost
       block:
         - name: Get Crowdstrike Authentication Token
@@ -71,7 +73,9 @@
 
     - name: Verify Falcon agents
       delegate_to: localhost
-      when: inventory_hostname == ansible_play_hosts[0]
+      when:
+        - falcon_agent_verify | default(True) | bool
+        - inventory_hostname == ansible_play_hosts[0]
       block:
         - name: Query registered devices
           ansible.builtin.uri:
