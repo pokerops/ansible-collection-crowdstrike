@@ -88,7 +88,7 @@
 
         - name: Set pagination facts
           ansible.builtin.set_fact:
-            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
             device_limit: "{{ _pagination.limit }}"
           vars:
             _pagination: "{{ device_query_head.json.meta.pagination }}"
@@ -110,8 +110,8 @@
             falcon_host_data: "{{ _head + _tail }}"
           vars:
             _head: "{{ device_query_head.json.resources }}"
-            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ device_query_pages.results | default([]) }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
 
         - name: Debug registered agents
           ansible.builtin.debug:
