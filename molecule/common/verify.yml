@@ -73,6 +73,46 @@
       delegate_to: localhost
       when: inventory_hostname == ansible_play_hosts[0]
       block:
+        - name: Query registered devices
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?&limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: device_query_head
+
+        - name: Set pagination facts
+          ansible.builtin.set_fact:
+            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
+            device_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ device_query_head.json.meta.pagination }}"
+
+        - name: Paginate agent query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
+          register: device_query_pages
+          loop: "{{ device_pages }}"
+
+        - name: Set agent facts
+          ansible.builtin.set_fact:
+            falcon_host_data: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ device_query_head.json.resources }}"
+            _pages: "{{ device_query_pages.results | default([]) }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+
+        - name: Debug registered agents
+          ansible.builtin.debug:
+            var: falcon_host_data
+
         - name: Set agent id facts
           ansible.builtin.set_fact:
             agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
@@ -81,24 +121,24 @@
           ansible.builtin.debug:
             var: agent_ids
 
-        - name: Query group registrations
+        - name: Query group members
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_id }}"
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_data.id }}&filter={{ _filter }}&limit={{ _limit }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
           vars:
+            _group_data: "{{ group_data | first }}"
+            _limit: "{{ falcon_api_page_size }}"
             _format: "'%s'"
-            _group: "{{ group_data | first }}"
-            _group_id: "{{ _group.id }}"
+            _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
+            _filter: "device_id:[{{ _agent_ids | join(',') }}]"
           register: group_members_query
 
-        - name: Set group registration facts
+        - name: Set group members facts
           ansible.builtin.set_fact:
-            group_members: "{{ group_members_query.json.resources | intersect(_agent_ids) }}"
-          vars:
-            _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
+            group_members: "{{ group_members_query.json.resources }}"
 
         - name: Debug group registrations
           ansible.builtin.debug:

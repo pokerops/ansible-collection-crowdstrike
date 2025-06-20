@@ -34,12 +34,16 @@ provisioner:
     verify: ../common/verify.yml
     destroy: ../common/destroy.yml
   inventory:
+    host_vars:
+      localhost:
+        ansible_python_interpreter: python
     group_vars:
       all:
         libvirt_platforms: "{{ molecule_yml.platforms }}"
         falcon_group: "molecule_${MOLECULE_SCENARIO_NAME}_${MOLECULE_KVM_DISTRO}"
         falcon_client_id: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_ID') }}"
         falcon_client_secret: "{{ lookup('env', 'CROWDSTRIKE_CLIENT_SECRET') }}"
+        falcon_gpg_key_check: false
         falcon_api_enable_no_log: false # do not enable this in production
 verifier:
   name: ansible
