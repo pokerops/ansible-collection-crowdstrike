@@ -63,7 +63,7 @@
 
         - name: Set pagination facts
           ansible.builtin.set_fact:
-            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
             device_limit: "{{ _pagination.limit }}"
           vars:
             _pagination: "{{ device_query_head.json.meta.pagination }}"
