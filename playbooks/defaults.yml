@@ -15,7 +15,7 @@
 
     - name: Set api redirect default
       ansible.builtin.set_fact:
-        falcon_api_redirect: true
+        falcon_api_redirect: all
       when: falcon_api_redirect is not defined
 
     - name: Set host state default

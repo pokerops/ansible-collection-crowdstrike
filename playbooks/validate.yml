@@ -29,7 +29,7 @@
           - falcon_host_state in ['present', 'absent']
         fail_msg: falcon_host_state must be defined and one of ['present', 'absent']
 
-    - name: Check falcon_client_id vardef
+    - name: Check falcon_api_base value
       ansible.builtin.assert:
         that: falcon_api_base is ansible.builtin.url
         fail_msg: falcon_api_base must be a valid url, got {{ falcon_api_base }}

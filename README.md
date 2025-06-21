@@ -31,23 +31,25 @@ The following parameters control the behavior of the collection playbooks:
 | -------------------------- | ---------------------------------- | --------------------------- |
 | `falcon_api_base`          | Base URL for CrowdStrike API       | https://api.crowdstrike.com |
 | `falcon_api_page_size`     | Number of items per API page       | 50                          |
-| `falcon_api_redirect`      | Allow API redirects                | true                        |
+| `falcon_api_redirect`      | Allow API redirects                | all                         |
 | `falcon_api_poll_interval` | Seconds between API retry attempts | 60                          |
 | `falcon_api_poll_retries`  | Maximum number of API retries      | 10                          |
 
 ### Agent Settings
 
-| Parameter                        | Description                           | Default |
-| -------------------------------- | ------------------------------------- | ------- |
-| `falcon_host_state`              | Desired state of Falcon agent         | present |
-| `falcon_agent_version_decrement` | Version offset for agent installation | 2       |
+| Parameter                        | Description                               | Default |
+| -------------------------------- | ----------------------------------------- | ------- |
+| `falcon_host_state`              | Desired state of Falcon agent             | present |
+| `falcon_agent_version_decrement` | Version offset for agent installation     | 2       |
+| `falcon_agent_verify`            | Toggle flag for agent registration checks | true    |
 
 ### Group Settings
 
-| Parameter             | Description                  | Default |
-| --------------------- | ---------------------------- | ------- |
-| `falcon_group_state`  | Desired state of host groups | present |
-| `falcon_group_manage` | Enable group management      | true    |
+| Parameter             | Description                               | Default |
+| --------------------- | ----------------------------------------- | ------- |
+| `falcon_group_state`  | Desired state of host groups              | present |
+| `falcon_group_manage` | Enable group management                   | true    |
+| `falcon_agent_verify` | Toggle flag for group registration checks | true    |
 
 ## Testing
 

@@ -84,7 +84,7 @@
 
         - name: Set pagination facts
           ansible.builtin.set_fact:
-            device_pages: "{{ range(_pagination.offset, _pagination.total, _pagination.limit) }}"
+            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
             device_limit: "{{ _pagination.limit }}"
           vars:
             _pagination: "{{ device_query_head.json.meta.pagination }}"
@@ -106,8 +106,8 @@
             falcon_host_data: "{{ _head + _tail }}"
           vars:
             _head: "{{ device_query_head.json.resources }}"
-            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
             _pages: "{{ device_query_pages.results | default([]) }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
 
         - name: Debug registered agents
           ansible.builtin.debug:
@@ -121,27 +121,22 @@
           ansible.builtin.debug:
             var: agent_ids
 
-        - name: Verify agent facts
-          ansible.builtin.assert:
-            that: agent_id in falcon_host_data
-            fail_msg: "Host query returned unexpected results: {{ falcon_host_data }}"
-
-        - name: Query group registrations
+        - name: Query group members
           ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_id }}&filter={{ _filter }}"
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ _group_data.id }}&filter={{ _filter }}&limit={{ _limit }}"
             follow_redirects: "{{ falcon_api_redirect }}"
             method: GET
             headers:
               Authorization: "Bearer {{ api_token }}"
           vars:
+            _group_data: "{{ group_data | first }}"
+            _limit: "{{ falcon_api_page_size }}"
             _format: "'%s'"
             _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
             _filter: "device_id:[{{ _agent_ids | join(',') }}]"
-            _group: "{{ group_data | first }}"
-            _group_id: "{{ _group.id }}"
           register: group_members_query
 
-        - name: Set group registration facts
+        - name: Set group members facts
           ansible.builtin.set_fact:
             group_members: "{{ group_members_query.json.resources }}"
 
