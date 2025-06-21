@@ -262,6 +262,7 @@
                         fail_msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
                       vars:
                         _registrations: "{{ group_members_query.json.resources }}"
+                      when: falcon_agent_verify | default(True) | bool
 
     - name: Manage stale agent registrations
       when:
