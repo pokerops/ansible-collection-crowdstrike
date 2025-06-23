@@ -1,5 +1,8 @@
 .PHONY: ${MAKECMDGOALS}
 
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
+
 MOLECULE_SCENARIO ?= install
 MOLECULE_KVM_DISTRO ?= jammy
 MOLECULE_KVM_IMAGE ?= https://cloud-images.ubuntu.com/${MOLECULE_KVM_DISTRO}/current/${MOLECULE_KVM_DISTRO}-server-cloudimg-amd64.img
@@ -22,6 +25,7 @@ shell:
 	DEVBOX_USE_VERSION=0.13.1 devbox shell
 
 test: requirements
+	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
 	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	uv run molecule $@ -s ${MOLECULE_SCENARIO}
@@ -44,7 +48,8 @@ requirements: install
 			--roles-path ${ROLE_DIR} \
 			--role-file ${ROLE_FILE} ; \
 	fi
-	@uv run ansible-galaxy collection install \
+	@ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
+	uv run ansible-galaxy collection install \
 		--force-with-deps .
 	@\find ./ -name "*.ymle*" -delete
 
@@ -57,6 +62,7 @@ ifeq (login,$(firstword $(MAKECMDGOALS)))
 endif
 
 dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
+	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
 	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
 	uv run molecule $@ -s ${MOLECULE_SCENARIO} ${LOGIN_ARGS}
