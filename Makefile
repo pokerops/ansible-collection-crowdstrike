@@ -34,8 +34,9 @@ install:
 	@uv sync
 
 lint: install
-	uv run yamllint .
-	uv run ansible-lint -p playbooks/
+	uv run yamllint . -c .yamllint
+	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
+	uv run ansible-lint -p playbooks/ --exclude "ansible_collections/*"
 
 requirements: install
 	@python --version
@@ -61,7 +62,7 @@ ifeq (login,$(firstword $(MAKECMDGOALS)))
     $(eval $(subst $(space),,$(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))):;@:)
 endif
 
-dependency create prepare converge idempotence side-effect verify destroy cleanup reset list:
+dependency create prepare converge idempotence side-effect verify destroy cleanup reset list login:
 	ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
 	MOLECULE_KVM_DISTRO=${MOLECULE_KVM_DISTRO} \
 	MOLECULE_KVM_IMAGE=${MOLECULE_KVM_IMAGE} \
