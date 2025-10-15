@@ -2,6 +2,8 @@
 - name: Manage Crowdstrike Falcon agents
   hosts: crowdstrike
   gather_facts: false
+  vars:
+    _crowdstrike_service: falcon-sensor
   tasks:
     - name: End play for absent hosts
       ansible.builtin.meta: end_play
@@ -28,10 +30,32 @@
         state: present
       become: true
 
+    - name: Create group agents
+      ansible.builtin.group_by:
+        key: "_agents_{{ _agent_status if (_service_installed | bool) else 'alien' }}"
+      vars:
+        _service_installed: "{{ services[_crowdstrike_service] is defined }}"
+        _service: "{{ services[_crowdstrike_service] | default({}) }}"
+        _state: "{{ _service['state'] | default('') }}"
+        _agent_status: "{{ (_state | lower != 'running') | ternary('offline', 'online') }}"
+
+    - name: Set agent group facts
+      ansible.builtin.set_fact:
+        _agents_offline: "{{ groups['_agents_offline'] | default([]) }}"
+        _agents_online: "{{ groups['_agents_online'] | default([]) }}"
+        _agents_alien: "{{ groups['_agents_alien'] | default([]) }}"
+
+    - name: Verify offline agents
+      ansible.builtin.assert:
+        that: _agents_offline | length == 0
+        fail_msg: "{{ _crowdstrike_service }} is failing on agents: [{{ _agents | join(', ') }}]"
+      vars:
+        _agents: "{{ _agents_offline }}"
+
     - name: Deploy Crowdstrike agent
       ansible.builtin.include_role:
         name: crowdstrike.falcon.falcon_install
-      when: services['falcon-sensor'] is not defined
+      when: inventory_hostname in _agents_alien
 
     - name: Configure Crowdstrike agent
       ansible.builtin.include_role:
