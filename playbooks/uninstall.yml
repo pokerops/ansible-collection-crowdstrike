@@ -2,6 +2,13 @@
 - name: Manage Falcon agent installation
   hosts: crowdstrike
   gather_facts: false
+  vars:
+    falcon_offline_group: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ falcon_suffix }}"
+    falcon_online_group: "{{ falcon_online_group_name | default('falcon_online') }}{{ falcon_suffix }}"
+    falcon_alien_group: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ falcon_suffix }}"
+    falcon_absent_group: "{{ falcon_absent_group_name | default('falcon_absent') }}{{ falcon_suffix }}"
+    falcon_present_group: "{{ falcon_online_group_name | default('falcon_present') }}{{ falcon_suffix }}"
+    falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
     - name: Ping host
       ansible.builtin.ping:
@@ -27,10 +34,9 @@
         _service: "{{ services[falcon_service_name] | default({}) }}"
         _state: "{{ _service['state'] | default('') }}"
         _agent_status: "{{ (_state | lower != 'running') | ternary(_offline, _online) }}"
-        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
-        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
-        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
-        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+        _offline: "{{ falcon_offline }}"
+        _online: "{{ falcon_online }}"
+        _alien: "{{ falcon_alien }}"
       changed_when: false
 
     - name: Set agent group facts
@@ -39,10 +45,27 @@
         falcon_agents_online: "{{ groups[_online] | default([]) }}"
         falcon_agents_alien: "{{ groups[_alien] | default([]) }}"
       vars:
-        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
-        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
-        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
-        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+        _offline: "{{ falcon_offline }}"
+        _online: "{{ falcon_online }}"
+        _alien: "{{ falcon_alien }}"
+
+    - name: Create falcon state groups
+      ansible.builtin.group_by:
+        key: "{{ _absent_group if (_absent | bool) else _present_group }}"
+      vars:
+        _absent_group: "{{ falcon_absent_group }}"
+        _present_group: "{{ falcon_present_group }}"
+        _absent: "{{ (inventory_hostname in falcon_agents_offline | bool) or (not _present | bool) }}"
+        _present: "{{ falcon_host_state == 'present' }}"
+      changed_when: false
+
+    - name: Set falcon agent status facts
+      ansible.builtin.set_fact:
+        falcon_agents_present: "{{ groups[_present_group] | default([]) }}"
+        falcon_agents_absent: "{{ groups[_absent_group] | default([]) }}"
+      vars:
+        _absent_group: "{{ falcon_absent_group }}"
+        _present_group: "{{ falcon_present_group }}"
 
     - name: Debug falcon offline agents
       ansible.builtin.debug:
@@ -56,90 +79,92 @@
       ansible.builtin.debug:
         var: falcon_agents_alien
 
+    - name: End play for online targets
+      ansible.builtin.meta: end_host
+      when: inventory_hostname in falcon_agents_present
+
     - name: Undeploy agent
       ansible.builtin.include_role:
         name: crowdstrike.falcon.falcon_uninstall
-      when: falcon_host_state == 'absent' or inventory_hostname in falcon_agents_offline
 
 - name: Manage Falcon agent registration
-  hosts: crowdstrike
+  hosts: "{{ falcon_agents_absent }}"
   gather_facts: false
+  vars:
+    falcon_absent_group: "{{ falcon_absent_group_name | default('falcon_absent') }}{{ falcon_suffix }}"
+    falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
-    - name: Manage stale agents
+    - name: Get Crowdstrike Authentication Token
+      ansible.builtin.uri:
+        url: "{{ falcon_api_base }}/oauth2/token"
+        follow_redirects: "{{ falcon_api_redirect }}"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: "{{ falcon_client_id }}"
+          client_secret: "{{ falcon_client_secret }}"
+        status_code: 201
+      register: auth_response
       delegate_to: localhost
-      when: falcon_host_state == 'absent' or inventory_hostname in falcon_agents_offline
-      block:
-        - name: Get Crowdstrike Authentication Token
-          ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/oauth2/token"
-            follow_redirects: "{{ falcon_api_redirect }}"
-            method: POST
-            body_format: form-urlencoded
-            body:
-              client_id: "{{ falcon_client_id }}"
-              client_secret: "{{ falcon_client_secret }}"
-            status_code: 201
-          register: auth_response
-          delegate_to: localhost
-          any_errors_fatal: true
+      any_errors_fatal: true
 
-        - name: Set auth facts
-          ansible.builtin.set_fact:
-            api_token: "{{ auth_response.json.access_token }}"
-          no_log: "{{ falcon_api_enable_no_log }}"
+    - name: Set auth facts
+      ansible.builtin.set_fact:
+        api_token: "{{ auth_response.json.access_token }}"
+      no_log: "{{ falcon_api_enable_no_log }}"
 
-        - name: Query registered agents
-          ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
-            follow_redirects: "{{ falcon_api_redirect }}"
-            method: GET
-            headers:
-              Authorization: "Bearer {{ api_token }}"
-            body_format: form-urlencoded
-          vars:
-            _filter: "hostname:['{{ inventory_hostname }}']"
-          register: device_query_head
+    - name: Query registered agents
+      ansible.builtin.uri:
+        url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
+        follow_redirects: "{{ falcon_api_redirect }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ api_token }}"
+        body_format: form-urlencoded
+      vars:
+        _filter: "hostname:['{{ inventory_hostname }}']"
+      register: device_query_head
 
-        - name: Set pagination facts
-          ansible.builtin.set_fact:
-            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
-            device_limit: "{{ _pagination.limit }}"
-          vars:
-            _pagination: "{{ device_query_head.json.meta.pagination }}"
+    - name: Set pagination facts
+      ansible.builtin.set_fact:
+        device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
+        device_limit: "{{ _pagination.limit }}"
+      vars:
+        _pagination: "{{ device_query_head.json.meta.pagination }}"
 
-        - name: Paginate agent query
-          ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
-            follow_redirects: "{{ falcon_api_redirect }}"
-            method: GET
-            headers:
-              Authorization: "Bearer {{ api_token }}"
-          vars:
-            _filter: "hostname:['{{ inventory_hostname }}']"
-          register: device_query_pages
-          loop: "{{ device_pages }}"
+    - name: Paginate agent query
+      ansible.builtin.uri:
+        url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
+        follow_redirects: "{{ falcon_api_redirect }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ api_token }}"
+      vars:
+        _filter: "hostname:['{{ inventory_hostname }}']"
+      register: device_query_pages
+      loop: "{{ device_pages }}"
 
-        - name: Set agent facts
-          ansible.builtin.set_fact:
-            device_list: "{{ _head + _tail }}"
-          vars:
-            _head: "{{ device_query_head.json.resources }}"
-            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
-            _pages: "{{ device_query_pages.results | default([]) }}"
+    - name: Set agent facts
+      ansible.builtin.set_fact:
+        device_list: "{{ _head + _tail }}"
+      vars:
+        _head: "{{ device_query_head.json.resources }}"
+        _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+        _pages: "{{ device_query_pages.results | default([]) }}"
 
-        - name: Debug stale agents
-          ansible.builtin.debug:
-            msg: "Pruning stale devices {{ device_list }}"
+    - name: Debug stale agents
+      ansible.builtin.debug:
+        msg: "Pruning stale devices {{ device_list }}"
 
-        - name: Unregister stale agents
-          ansible.builtin.uri:
-            url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
-            follow_redirects: "{{ falcon_api_redirect }}"
-            method: POST
-            status_code: [202, 409]
-            headers:
-              Authorization: "Bearer {{ api_token }}"
-            body_format: json
-            body:
-              ids: "{{ device_list }}"
-          when: device_list | length > 0
+    - name: Unregister stale agents
+      ansible.builtin.uri:
+        url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
+        follow_redirects: "{{ falcon_api_redirect }}"
+        method: POST
+        status_code: [202, 409]
+        headers:
+          Authorization: "Bearer {{ api_token }}"
+        body_format: json
+        body:
+          ids: "{{ device_list }}"
+      when: device_list | length > 0
