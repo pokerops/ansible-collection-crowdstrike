@@ -1,0 +1,134 @@
+---
+- name: Stop falcon service
+  hosts: crowdstrike
+  vars:
+    falcon_service_name: "falcon-sensor.service"
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Stop falcon service
+      ansible.builtin.service:
+        name: "{{ falcon_service_name }}"
+        state: stopped
+      become: true
+      when: services[falcon_service_name] is defined
+
+- name: Import Crowdstrike deploy playbook
+  ansible.builtin.import_playbook: pokerops.crowdstrike.destroy
+  vars:
+    falcon_group_state: present
+    falcon_host_state: present
+    falcon_group_name_suffix: "_stop"
+
+- name: Set agent group facts when stopped
+  hosts: crowdstrike
+  vars:
+    falcon_group_name_suffix: "_stopped"
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Create group agents
+      ansible.builtin.group_by:
+        key: "{{ _agent_status if (_service_installed | bool) else _alien }}"
+      vars:
+        falcon_service_name: "falcon-sensor.service"
+        _service_installed: "{{ services[falcon_service_name] is defined }}"
+        _service: "{{ services[falcon_service_name] | default({}) }}"
+        _state: "{{ _service['state'] | default('') }}"
+        _agent_status: "{{ (_state | lower != 'running') | ternary(_offline, _online) }}"
+        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
+        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
+        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
+        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+      changed_when: false
+
+    - name: Set agent group facts
+      ansible.builtin.set_fact:
+        falcon_offline_agents_stopped: "{{ groups[_offline] | default([]) }}"
+        falcon_online_agents_stopped: "{{ groups[_online] | default([]) }}"
+        falcon_alien_agents_stopped: "{{ groups[_alien] | default([]) }}"
+      vars:
+        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
+        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
+        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
+        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+
+- name: Import Crowdstrike deploy playbook
+  ansible.builtin.import_playbook: pokerops.crowdstrike.deploy
+  vars:
+    falcon_group_state: present
+    falcon_host_state: present
+    falcon_group_name_suffix: "_reinstall"
+
+- name: Verify falcon agents state
+  hosts: crowdstrike
+  vars:
+    falcon_service_name: "falcon-sensor.service"
+    falcon_group_name_suffix: "_reinstalled"
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Create group agents
+      ansible.builtin.group_by:
+        key: "{{ _agent_status if (_service_installed | bool) else _alien }}"
+      vars:
+        _service_installed: "{{ services[falcon_service_name] is defined }}"
+        _service: "{{ services[falcon_service_name] | default({}) }}"
+        _state: "{{ _service['state'] | default('') }}"
+        _agent_status: "{{ (_state | lower != 'running') | ternary(_offline, _online) }}"
+        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
+        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
+        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
+        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+      changed_when: false
+
+    - name: Set agent group facts
+      ansible.builtin.set_fact:
+        falcon_offline_agents_reinstalled: "{{ groups[_offline] | default([]) }}"
+        falcon_online_agents_reinstalled: "{{ groups[_online] | default([]) }}"
+        falcon_alien_agents_reinstalled: "{{ groups[_alien] | default([]) }}"
+      vars:
+        _offline: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ _suffix }}"
+        _online: "{{ falcon_online_group_name | default('falcon_online') }}{{ _suffix }}"
+        _alien: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ _suffix }}"
+        _suffix: "{{ falcon_group_name_suffix | default('') }}"
+
+    - name: Debug falcon offline agents when stopped
+      ansible.builtin.debug:
+        var: falcon_offline_agents_stopped
+
+    - name: Debug falcon online agents when stopped
+      ansible.builtin.debug:
+        var: falcon_online_agents_stopped
+
+    - name: Debug falcon alien agents when stopped
+      ansible.builtin.debug:
+        var: falcon_alien_agents_stopped
+
+    - name: Debug falcon offline agents when reinstalled
+      ansible.builtin.debug:
+        var: falcon_offline_agents_reinstalled
+
+    - name: Debug falcon online agents when reinstalled
+      ansible.builtin.debug:
+        var: falcon_online_agents_reinstalled
+
+    - name: Debug falcon alien agents when reinstalled
+      ansible.builtin.debug:
+        var: falcon_alien_agents_reinstalled
+
+    - name: Validate falcon hostgroup membership
+      ansible.builtin.assert:
+        that:
+          - falcon_online_agents_stopped | length == 0
+          - falcon_offline_agents_stopped | length == 0
+          - falcon_offline_agents_reinstalled | length == 0
+          - falcon_alien_agents_reinstalled | length == 0
+          - inventory_hostname in falcon_alien_agents_stopped
+          - inventory_hostname in falcon_online_agents_reinstalled
+
+- name: Destroy Crowdstrike agents
+  ansible.builtin.import_playbook: ../common/uninstall.yml

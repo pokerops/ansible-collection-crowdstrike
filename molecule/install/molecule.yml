@@ -30,7 +30,6 @@ provisioner:
     create: ../common/create.yml
     prepare: ../common/prepare.yml
     converge: ../common/install.yml
-    side_effect: ../common/uninstall.yml
     verify: ../common/verify.yml
     destroy: ../common/destroy.yml
   inventory:
