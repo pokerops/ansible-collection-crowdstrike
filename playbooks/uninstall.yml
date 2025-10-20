@@ -94,77 +94,80 @@
     falcon_absent_group: "{{ falcon_absent_group_name | default('falcon_absent') }}{{ falcon_suffix }}"
     falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
-    - name: Get Crowdstrike Authentication Token
-      ansible.builtin.uri:
-        url: "{{ falcon_api_base }}/oauth2/token"
-        follow_redirects: "{{ falcon_api_redirect }}"
-        method: POST
-        body_format: form-urlencoded
-        body:
-          client_id: "{{ falcon_client_id }}"
-          client_secret: "{{ falcon_client_secret }}"
-        status_code: 201
-      register: auth_response
+    - name: Manage stale agents
       delegate_to: localhost
-      any_errors_fatal: true
+      block:
+        - name: Get Crowdstrike Authentication Token
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/oauth2/token"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: "{{ falcon_client_id }}"
+              client_secret: "{{ falcon_client_secret }}"
+            status_code: 201
+          register: auth_response
+          delegate_to: localhost
+          any_errors_fatal: true
 
-    - name: Set auth facts
-      ansible.builtin.set_fact:
-        api_token: "{{ auth_response.json.access_token }}"
-      no_log: "{{ falcon_api_enable_no_log }}"
+        - name: Set auth facts
+          ansible.builtin.set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          no_log: "{{ falcon_api_enable_no_log }}"
 
-    - name: Query registered agents
-      ansible.builtin.uri:
-        url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
-        follow_redirects: "{{ falcon_api_redirect }}"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ api_token }}"
-        body_format: form-urlencoded
-      vars:
-        _filter: "hostname:['{{ inventory_hostname }}']"
-      register: device_query_head
+        - name: Query registered agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: form-urlencoded
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
+          register: device_query_head
 
-    - name: Set pagination facts
-      ansible.builtin.set_fact:
-        device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
-        device_limit: "{{ _pagination.limit }}"
-      vars:
-        _pagination: "{{ device_query_head.json.meta.pagination }}"
+        - name: Set pagination facts
+          ansible.builtin.set_fact:
+            device_pages: "{{ range(_pagination.offset, _pagination.total + 1, _pagination.limit) }}"
+            device_limit: "{{ _pagination.limit }}"
+          vars:
+            _pagination: "{{ device_query_head.json.meta.pagination }}"
 
-    - name: Paginate agent query
-      ansible.builtin.uri:
-        url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
-        follow_redirects: "{{ falcon_api_redirect }}"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ api_token }}"
-      vars:
-        _filter: "hostname:['{{ inventory_hostname }}']"
-      register: device_query_pages
-      loop: "{{ device_pages }}"
+        - name: Paginate agent query
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/devices/v1?filter={{ _filter }}&limit={{ falcon_api_page_size }}&offset={{ item }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          vars:
+            _filter: "hostname:['{{ inventory_hostname }}']"
+          register: device_query_pages
+          loop: "{{ device_pages }}"
 
-    - name: Set agent facts
-      ansible.builtin.set_fact:
-        device_list: "{{ _head + _tail }}"
-      vars:
-        _head: "{{ device_query_head.json.resources }}"
-        _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
-        _pages: "{{ device_query_pages.results | default([]) }}"
+        - name: Set agent facts
+          ansible.builtin.set_fact:
+            device_list: "{{ _head + _tail }}"
+          vars:
+            _head: "{{ device_query_head.json.resources }}"
+            _tail: "{{ _pages | map(attribute='json') | map(attribute='resources') | list | flatten }}"
+            _pages: "{{ device_query_pages.results | default([]) }}"
 
-    - name: Debug stale agents
-      ansible.builtin.debug:
-        msg: "Pruning stale devices {{ device_list }}"
+        - name: Debug stale agents
+          ansible.builtin.debug:
+            msg: "Pruning stale devices {{ device_list }}"
 
-    - name: Unregister stale agents
-      ansible.builtin.uri:
-        url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
-        follow_redirects: "{{ falcon_api_redirect }}"
-        method: POST
-        status_code: [202, 409]
-        headers:
-          Authorization: "Bearer {{ api_token }}"
-        body_format: json
-        body:
-          ids: "{{ device_list }}"
-      when: device_list | length > 0
+        - name: Unregister stale agents
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/entities/devices-actions/v2?action_name=hide_host"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: POST
+            status_code: [202, 409]
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+            body_format: json
+            body:
+              ids: "{{ device_list }}"
+          when: device_list | length > 0
