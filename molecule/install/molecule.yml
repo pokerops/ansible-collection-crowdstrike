@@ -55,7 +55,6 @@ scenario:
   cleanup_sequence:
     - cleanup
   test_sequence:
-    - destroy
     - dependency
     - create
     - prepare
