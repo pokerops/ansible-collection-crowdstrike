@@ -32,7 +32,12 @@ jobs:
       - name: Run devbox tests
         uses: pokerops/ansible-utils@master
         with:
-          run: devbox run -- make requirements ${{ matrix.os }} MOLECULE_LOGDIR=${{ env.MOLECULE_LOGDIR }} MOLECULE_SCENARIO=${{ matrix.scenario }}
+          run: |
+            devbox run -- make requirements ${{ matrix.os }} 
+            MOLECULE_LOGDIR=${{ env.MOLECULE_LOGDIR }} 
+            MOLECULE_SCENARIO=${{ matrix.scenario }}
+            CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
+            CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4
