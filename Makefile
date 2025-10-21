@@ -52,7 +52,7 @@ requirements: install
 	@ANSIBLE_COLLECTIONS_PATH=$(MAKEFILE_DIR) \
 	uv run ansible-galaxy collection install \
 		--force-with-deps .
-	@\find ./ -name "*.ymle*" -delete
+	@find ./ -name "*.ymle*" -delete
 
 build: requirements
 	@uv run ansible-galaxy collection build --force
