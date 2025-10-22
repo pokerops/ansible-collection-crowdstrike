@@ -36,8 +36,8 @@ jobs:
             MOLECULE_LOGDIR=${{ env.MOLECULE_LOGDIR }}
             MOLECULE_SCENARIO=${{ matrix.scenario }}
             MOLECULE_KVM_DISTRO=${{ matrix.os }}
-            CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
-            CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
+            CROWDSTRIKE_CLIENT_ID=${{ secrets.CROWDSTRIKE_CLIENT_ID }}
+            CROWDSTRIKE_CLIENT_SECRET=${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
             devbox run -- make requirements ${{ matrix.os }}
 
       - name: Upload install logs
