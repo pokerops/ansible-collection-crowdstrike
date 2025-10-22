@@ -9,6 +9,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   libvirt:
     name: libvirt
@@ -26,25 +30,22 @@ jobs:
             url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
           - distro: rocky9
             url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+    env:
+      MOLECULE_LOGDIR: "/tmp/logs"
+      CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
+      CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
-      - name: Check out the codebase
-        uses: actions/checkout@v4
+      - name: Run devbox tests
+        uses: pokerops/ansible-utils@master
+        with:
+          run: devbox run -- make requirements test MOLECULE_SCENARIO=${{ matrix.scenario }} MOLECULE_KVM_DISTRO=${{ matrix.image.distro }} MOLECULE_KVM_IMAGE=${{ matrix.image.url }}
 
-      - name: Generate devbox locale
-        run: sudo locale-gen C.UTF-8
-
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.12.0
-
-      - name: Debug test environment
-        run: devbox run -- make debug
-
-      - name: Run molecule tests.
-        run: devbox run -- make test
-        env:
-          MOLECULE_KVM_DISTRO: ${{ matrix.image.distro }}
-          MOLECULE_KVM_IMAGE: ${{ matrix.image.url }}
-          MOLECULE_SCENARIO: ${{ matrix.scenario }}
-          CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
-          CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Upload install logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: install.${{ matrix.image.distro }}
+          path: |
+            ${{ env.MOLECULE_LOGDIR }}/*.log
+          if-no-files-found: ignore
+        if: always()

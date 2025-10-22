@@ -2,33 +2,105 @@
 - name: Manage Falcon agent installation
   hosts: crowdstrike
   gather_facts: false
+  vars:
+    falcon_offline_group: "{{ falcon_offline_group_name | default('falcon_offline') }}{{ falcon_suffix }}"
+    falcon_online_group: "{{ falcon_online_group_name | default('falcon_online') }}{{ falcon_suffix }}"
+    falcon_alien_group: "{{ falcon_alien_group_name | default('falcon_alien') }}{{ falcon_suffix }}"
+    falcon_absent_group: "{{ falcon_absent_group_name | default('falcon_absent') }}{{ falcon_suffix }}"
+    falcon_present_group: "{{ falcon_online_group_name | default('falcon_present') }}{{ falcon_suffix }}"
+    falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
-    - name: Uninstall agent
-      when: falcon_host_state == 'absent'
-      block:
-        - name: Ping host
-          ansible.builtin.ping:
-          register: host_facts
-          ignore_unreachable: true
+    - name: Ping host
+      ansible.builtin.ping:
+      register: host_facts
+      ignore_unreachable: true
 
-        - name: End play for unreachable hosts
-          ansible.builtin.meta: end_host
-          when: host_facts is unreachable
+    - name: End play for unreachable hosts
+      ansible.builtin.meta: end_host
+      when: host_facts is unreachable
 
-        - name: Gather host facts
-          ansible.builtin.setup:
+    - name: Gather host facts
+      ansible.builtin.setup:
 
-        - name: Undeploy agent
-          ansible.builtin.include_role:
-            name: crowdstrike.falcon.falcon_uninstall
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Create group agents
+      ansible.builtin.group_by:
+        key: "{{ _agent_status if (_service_installed | bool) else _alien }}"
+      vars:
+        falcon_service_name: "falcon-sensor.service"
+        _service_installed: "{{ services[falcon_service_name] is defined }}"
+        _service: "{{ services[falcon_service_name] | default({}) }}"
+        _state: "{{ _service['state'] | default('') }}"
+        _agent_status: "{{ (_state | lower != 'running') | ternary(_offline, _online) }}"
+        _offline: "{{ falcon_offline_group }}"
+        _online: "{{ falcon_online_group }}"
+        _alien: "{{ falcon_alien_group }}"
+      changed_when: false
+
+    - name: Set agent group facts
+      ansible.builtin.set_fact:
+        falcon_agents_offline: "{{ groups[_offline] | default([]) }}"
+        falcon_agents_online: "{{ groups[_online] | default([]) }}"
+        falcon_agents_alien: "{{ groups[_alien] | default([]) }}"
+      vars:
+        _offline: "{{ falcon_offline_group }}"
+        _online: "{{ falcon_online_group }}"
+        _alien: "{{ falcon_alien_group }}"
+
+    - name: Create falcon state groups
+      ansible.builtin.group_by:
+        key: "{{ _absent_group if _absent else _present_group }}"
+      vars:
+        _absent_group: "{{ falcon_absent_group }}"
+        _present_group: "{{ falcon_present_group }}"
+        _absent: "{{ not _present | bool }}"
+        _present: "{{ (inventory_hostname not in falcon_agents_offline) and (falcon_host_state == 'present') }}"
+      changed_when: false
+
+    - name: Set falcon agent status facts
+      ansible.builtin.set_fact:
+        falcon_agents_present: "{{ groups[_present_group] | default([]) }}"
+        falcon_agents_absent: "{{ groups[_absent_group] | default([]) }}"
+      vars:
+        _absent_group: "{{ falcon_absent_group }}"
+        _present_group: "{{ falcon_present_group }}"
+
+    - name: Debug falcon offline agents
+      ansible.builtin.debug:
+        var: falcon_agents_offline
+
+    - name: Debug falcon online agents
+      ansible.builtin.debug:
+        var: falcon_agents_online
+
+    - name: Debug falcon alien agents
+      ansible.builtin.debug:
+        var: falcon_agents_alien
+
+    - name: End play for online targets
+      ansible.builtin.meta: end_host
+      when: inventory_hostname not in falcon_agents_absent
+
+    - name: Undeploy agent
+      ansible.builtin.include_role:
+        name: crowdstrike.falcon.falcon_uninstall
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      become: true
 
 - name: Manage Falcon agent registration
-  hosts: crowdstrike
+  hosts: "{{ falcon_absent_group }}"
   gather_facts: false
+  vars:
+    falcon_absent_group: "{{ falcon_absent_group_name | default('falcon_absent') }}{{ falcon_suffix }}"
+    falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
     - name: Manage stale agents
       delegate_to: localhost
-      when: falcon_host_state == 'absent'
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:

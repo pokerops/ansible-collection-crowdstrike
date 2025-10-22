@@ -2,9 +2,11 @@
 - name: Manage Crowdstrike Falcon agents
   hosts: crowdstrike
   gather_facts: false
+  vars:
+    falcon_service_name: "falcon-sensor.service"
   tasks:
     - name: End play for absent hosts
-      ansible.builtin.meta: end_play
+      ansible.builtin.meta: end_host
       when: falcon_host_state == 'absent'
 
     - name: Ping host
@@ -31,7 +33,7 @@
     - name: Deploy Crowdstrike agent
       ansible.builtin.include_role:
         name: crowdstrike.falcon.falcon_install
-      when: services['falcon-sensor'] is not defined
+      when: services[falcon_service_name] is not defined
 
     - name: Configure Crowdstrike agent
       ansible.builtin.include_role:

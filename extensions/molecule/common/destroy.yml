@@ -1,6 +1,6 @@
 ---
 - name: Import crowdstrike destroy playbook
-  ansible.builtin.import_playbook: pokerops.crowdstrike.deploy
+  ansible.builtin.import_playbook: pokerops.crowdstrike.destroy
   vars:
     falcon_host_state: absent
     falcon_group_state: absent
