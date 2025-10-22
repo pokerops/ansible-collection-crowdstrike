@@ -14,9 +14,3 @@
         name: unattended-upgrades
         state: absent
       when: ansible_os_family == 'Debian'
-
-- name: Import crowdstrike destroy playbook
-  ansible.builtin.import_playbook: pokerops.crowdstrike.destroy
-  vars:
-    falcon_host_state: absent
-    falcon_group_state: absent

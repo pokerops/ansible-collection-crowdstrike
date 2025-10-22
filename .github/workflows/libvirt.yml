@@ -21,25 +21,30 @@ jobs:
       matrix:
         scenario:
           - install
-        os:
-          - jammy
-          - noble
-          - bookworm
-          - rocky9
+        image:
+          - distro: jammy
+            url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+          - distro: noble
+            url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+          - distro: bookworm
+            url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+          - distro: rocky9
+            url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
     env:
       MOLECULE_LOGDIR: "/tmp/logs"
       CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
       CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Run devbox tests
         uses: pokerops/ansible-utils@master
         with:
-          run: devbox run -- make requirements ${{ matrix.os }} MOLECULE_LOGDIR=${{ env.MOLECULE_LOGDIR }} MOLECULE_SCENARIO=${{ matrix.scenario }} MOLECULE_KVM_DISTRO=${{ matrix.os }}
+          run: devbox run -- make requirements test MOLECULE_SCENARIO=${{ matrix.scenario }} MOLECULE_KVM_DISTRO=${{ matrix.image.distro }} MOLECULE_KVM_IMAGE=${{ matrix.image.url }}
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4
         with:
-          name: install.${{ matrix.os }}
+          name: install.${{ matrix.image.distro }}
           path: |
             ${{ env.MOLECULE_LOGDIR }}/*.log
           if-no-files-found: ignore

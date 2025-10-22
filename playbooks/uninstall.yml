@@ -87,6 +87,11 @@
       ansible.builtin.include_role:
         name: crowdstrike.falcon.falcon_uninstall
 
+    - name: Reload systemd daemon
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      become: true
+
 - name: Manage Falcon agent registration
   hosts: "{{ falcon_absent_group }}"
   gather_facts: false
