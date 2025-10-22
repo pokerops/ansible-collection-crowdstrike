@@ -13,3 +13,6 @@ dev = [
   "github3-py>=4.0.1",
   "jmespath>=1.0.1",
 ]
+
+[tool.setuptools]
+packages = []

@@ -9,6 +9,7 @@ DEBIAN_KVM_IMAGE = https://cloud.debian.org/images/cloud/${DEBIAN_RELEASE}/lates
 UBUNTU_KVM_IMAGE = https://cloud-images.ubuntu.com/${UBUNTU_RELEASE}/current/${UBUNTU_RELEASE}-server-cloudimg-amd64.img
 ROCKY_KVM_IMAGE = https://dl.rockylinux.org/pub/rocky/${EL_RELEASE}/images/x86_64/Rocky-${EL_RELEASE}-GenericCloud-Base.latest.x86_64.qcow2
 MOLECULE_KVM_IMAGE := $(UBUNTU_KVM_IMAGE)
+MOLECULE_KVM_DISTRO ?= jammy
 
 ubuntu:
 	make test \
