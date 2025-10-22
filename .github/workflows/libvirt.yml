@@ -33,12 +33,12 @@ jobs:
         uses: pokerops/ansible-utils@master
         with:
           run: |
-            devbox run -- make requirements ${{ matrix.os }}
             MOLECULE_LOGDIR=${{ env.MOLECULE_LOGDIR }}
             MOLECULE_SCENARIO=${{ matrix.scenario }}
             MOLECULE_KVM_DISTRO=${{ matrix.os }}
             CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
             CROWDSTRIKE_CLIENT_SECRET: ${{ secrets.CROWDSTRIKE_CLIENT_SECRET }}
+            devbox run -- make requirements ${{ matrix.os }}
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4
