@@ -10,6 +10,7 @@ UBUNTU_KVM_IMAGE = https://cloud-images.ubuntu.com/${UBUNTU_RELEASE}/current/${U
 ROCKY_KVM_IMAGE = https://dl.rockylinux.org/pub/rocky/${EL_RELEASE}/images/x86_64/Rocky-${EL_RELEASE}-GenericCloud-Base.latest.x86_64.qcow2
 MOLECULE_KVM_IMAGE := $(UBUNTU_KVM_IMAGE)
 MOLECULE_KVM_DISTRO ?= jammy
+MOLECULE_SCENARIO ?= install
 
 ubuntu:
 	make test \
