@@ -7,7 +7,17 @@
   tasks:
     - name: End play for absent hosts
       ansible.builtin.meta: end_host
-      when: falcon_host_state == 'absent'
+      when: falcon_host_state in _offline
+      vars:
+        _states: "{{ falcon_host_state_list }}"
+        _online:
+          - present
+          - poweredon
+          - powered-on
+          - rebootguest
+          - reboot-guest
+          - restarted
+        _offline: "{{ _states | reject('in', _online) }}"
 
     - name: Ping host
       ansible.builtin.ping:

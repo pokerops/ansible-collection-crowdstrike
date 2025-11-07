@@ -56,3 +56,19 @@
       ansible.builtin.set_fact:
         falcon_api_enable_no_log: true
       when: falcon_api_enable_no_log is not defined
+
+    - name: Set host state list default
+      ansible.builtin.set_fact:
+        falcon_host_state_list:
+          - present
+          - absent
+          - poweredoff
+          - powered-off
+          - shutdownguest
+          - shutdown-guest
+          - poweredon
+          - powered-on
+          - rebootguest
+          - reboot-guest
+          - restarted
+      when: falcon_host_state_list is not defined

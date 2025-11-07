@@ -26,8 +26,8 @@
       ansible.builtin.assert:
         that:
           - falcon_host_state is defined
-          - falcon_host_state in ['present', 'absent']
-        fail_msg: falcon_host_state must be defined and one of ['present', 'absent']
+          - falcon_host_state in falcon_host_state_list
+        fail_msg: "falcon_host_state must be defined and one of [{{ falcon_host_state_list | join(', ') }}]"
 
     - name: Check falcon_api_base value
       ansible.builtin.assert:
