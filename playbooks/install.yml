@@ -12,6 +12,11 @@
         _states: "{{ falcon_host_state_list }}"
         _online:
           - present
+          - poweredon
+          - powered-on
+          - rebootguest
+          - reboot-guest
+          - restarted
         _offline: "{{ _states | reject('in', _online) }}"
 
     - name: Ping host

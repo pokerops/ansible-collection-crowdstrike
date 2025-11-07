@@ -66,4 +66,9 @@
           - powered-off
           - shutdownguest
           - shutdown-guest
+          - poweredon
+          - powered-on
+          - rebootguest
+          - reboot-guest
+          - restarted
       when: falcon_host_state_list is not defined
