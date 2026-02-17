@@ -66,6 +66,7 @@
 
     - name: Register agents to group
       when: inventory_hostname == ansible_play_hosts[0]
+      delegate_to: localhost
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -83,13 +84,6 @@
         - name: Set auth facts
           ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
-          no_log: "{{ falcon_api_enable_no_log }}"
-
-        - name: Set global auth facts
-          ansible.builtin.set_fact:
-            api_token: "{{ auth_response.json.access_token }}"
-          delegate_to: localhost
-          delegate_facts: true
           no_log: "{{ falcon_api_enable_no_log }}"
 
         - name: Query registered groups
@@ -119,12 +113,6 @@
           vars:
             _group: "{{ falcon_group_data | first }}"
 
-        - name: Set global group facts
-          ansible.builtin.set_fact:
-            group_id: "{{ group_id }}"
-          delegate_to: localhost
-          delegate_facts: true
-
         - name: Aggregate agent ids
           ansible.builtin.set_fact:
             agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
@@ -133,11 +121,14 @@
           ansible.builtin.debug:
             var: agent_ids
 
-        - name: Set global agend ids
+        - name: Set variables for group registration
           ansible.builtin.set_fact:
-            agent_ids: "{{ agent_ids }}"
-          delegate_to: localhost
-          delegate_facts: true
+            _filter: "{{ v_filter }}"
+            _limit: "{{ falcon_api_page_size }}"
+          vars:
+            v_format: "'%s'"
+            v_agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', v_format) }}"
+            v_filter: "device_id:[{{ v_agent_ids | join(',') }}]"
 
         - name: Register agents to group - attempt 1
           block:
@@ -156,30 +147,43 @@
                   ids:
                     - "{{ group_id }}"
 
-            - name: Query group members
+            - name: Query number of group members
               ansible.builtin.uri:
                 url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}"
                 follow_redirects: "{{ falcon_api_redirect }}"
                 method: GET
                 headers:
                   Authorization: "Bearer {{ api_token }}"
+              register: group_members_query_head
+
+            - name: Set group member pagination facts
+              ansible.builtin.set_fact:
+                group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
               vars:
-                _limit: "{{ falcon_api_page_size }}"
-                _format: "'%s'"
-                _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
-                _filter: "device_id:[{{ _agent_ids | join(',') }}]"
+                _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
+            - name: Query group members
+              ansible.builtin.uri:
+                url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
+                follow_redirects: "{{ falcon_api_redirect }}"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ api_token }}"
+              loop: "{{ group_members_pages }}"
               register: group_members_query
+
+            - name: Set group members facts
+              ansible.builtin.set_fact:
+                all_group_members: "{{ group_members_query.results | map(attribute='json') | map(attribute='resources') | list | flatten }}"
 
             - name: Debug agent group registrations
               ansible.builtin.debug:
-                msg: "{{ group_members_query.json.resources }}"
+                msg: "{{ all_group_members }}"
 
             - name: Verify agent group registrations
               ansible.builtin.fail:
-                msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
-              vars:
-                _registrations: "{{ group_members_query.json.resources }}"
-              when: agent_ids | difference(_registrations) | length > 0
+                msg: "Agent registration failed, expected {{ agent_ids }}, got {{ all_group_members }}"
+              when: agent_ids | difference(all_group_members) | length > 0
 
           rescue:
             - name: Wait for agent registration - attempt 2
@@ -203,30 +207,43 @@
                       ids:
                         - "{{ group_id }}"
 
-                - name: Query group members
+                - name: Query number of group members
                   ansible.builtin.uri:
-                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}"
+                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}"
                     follow_redirects: "{{ falcon_api_redirect }}"
                     method: GET
                     headers:
                       Authorization: "Bearer {{ api_token }}"
+                  register: group_members_query_head
+
+                - name: Set group member pagination facts
+                  ansible.builtin.set_fact:
+                    group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
                   vars:
-                    _limit: "{{ falcon_api_page_size }}"
-                    _format: "'%s'"
-                    _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
-                    _filter: "device_id:[{{ _agent_ids | join(',') }}]"
+                    _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
+                - name: Query group members
+                  ansible.builtin.uri:
+                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
+                    follow_redirects: "{{ falcon_api_redirect }}"
+                    method: GET
+                    headers:
+                      Authorization: "Bearer {{ api_token }}"
+                  loop: "{{ group_members_pages }}"
                   register: group_members_query
+
+                - name: Set group members facts
+                  ansible.builtin.set_fact:
+                    all_group_members: "{{ group_members_query.results | map(attribute='json') | map(attribute='resources') | list | flatten }}"
 
                 - name: Debug agent group registrations
                   ansible.builtin.debug:
-                    msg: "{{ group_members_query.json.resources }}"
+                    msg: "{{ all_group_members }}"
 
                 - name: Verify agent group registrations
                   ansible.builtin.fail:
-                    msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
-                  vars:
-                    _registrations: "{{ group_members_query.json.resources }}"
-                  when: agent_ids | difference(_registrations) | length > 0
+                    msg: "Agent registration failed, expected {{ agent_ids }}, got {{ all_group_members }}"
+                  when: agent_ids | difference(all_group_members) | length > 0
 
               rescue:
                 - name: Wait for agent registration - attempt 3
@@ -250,23 +267,38 @@
                           ids:
                             - "{{ group_id }}"
 
-                    - name: Query group members
+                    - name: Query number of group members
                       ansible.builtin.uri:
-                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}"
+                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}"
                         follow_redirects: "{{ falcon_api_redirect }}"
                         method: GET
                         headers:
                           Authorization: "Bearer {{ api_token }}"
+                      register: group_members_query_head
+
+                    - name: Set group member pagination facts
+                      ansible.builtin.set_fact:
+                        group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
                       vars:
-                        _limit: "{{ falcon_api_page_size }}"
-                        _format: "'%s'"
-                        _agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', _format) }}"
-                        _filter: "device_id:[{{ _agent_ids | join(',') }}]"
+                        _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
+                    - name: Query group members
+                      ansible.builtin.uri:
+                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
+                        follow_redirects: "{{ falcon_api_redirect }}"
+                        method: GET
+                        headers:
+                          Authorization: "Bearer {{ api_token }}"
+                      loop: "{{ group_members_pages }}"
                       register: group_members_query
+
+                    - name: Set group members facts
+                      ansible.builtin.set_fact:
+                        all_group_members: "{{ group_members_query.results | map(attribute='json') | map(attribute='resources') | list | flatten }}"
 
                     - name: Debug agent group registrations
                       ansible.builtin.debug:
-                        msg: "{{ group_members_query.json.resources }}"
+                        msg: "{{ all_group_members }}"
 
                     - name: Verify agent group registrations
                       ansible.builtin.assert:
@@ -282,17 +314,21 @@
         - ansible_play_hosts | symmetric_difference(groups['crowdstrike']) | length == 0
         - inventory_hostname == ansible_play_hosts[0]
       block:
+        - name: Executive host
+          ansible.builtin.set_fact:
+            _play_host: "{{ ansible_play_hosts[0] }}"
+
         - name: Set auth facts
           ansible.builtin.set_fact:
-            api_token: "{{ hostvars['localhost']['api_token'] }}"
+            api_token: "{{ hostvars[_play_host]['api_token'] }}"
 
         - name: Set group id facts
           ansible.builtin.set_fact:
-            group_id: "{{ hostvars['localhost']['group_id'] }}"
+            group_id: "{{ hostvars[_play_host]['group_id'] }}"
 
         - name: Set agent id facts
           ansible.builtin.set_fact:
-            agent_ids: "{{ hostvars['localhost']['agent_ids'] }}"
+            agent_ids: "{{ hostvars[_play_host]['agent_ids'] }}"
 
         - name: Query group members
           ansible.builtin.uri:
