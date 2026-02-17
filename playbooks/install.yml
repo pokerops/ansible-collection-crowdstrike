@@ -224,11 +224,13 @@
 
                 - name: Query group members
                   ansible.builtin.uri:
-                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
+                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?{{ parameters }}"
                     follow_redirects: "{{ falcon_api_redirect }}"
                     method: GET
                     headers:
                       Authorization: "Bearer {{ api_token }}"
+                  vars:
+                    parameters: "id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
                   loop: "{{ group_members_pages }}"
                   register: group_members_query
 
@@ -284,11 +286,13 @@
 
                     - name: Query group members
                       ansible.builtin.uri:
-                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
+                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?{{ parameters }}"
                         follow_redirects: "{{ falcon_api_redirect }}"
                         method: GET
                         headers:
                           Authorization: "Bearer {{ api_token }}"
+                      vars:
+                        parameters: "id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
                       loop: "{{ group_members_pages }}"
                       register: group_members_query
 
