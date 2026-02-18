@@ -297,7 +297,7 @@
                         that: agent_ids | difference(_registrations) | length == 0
                         fail_msg: "Agent registration failed, expected {{ agent_ids }}, got {{ _registrations }}"
                       vars:
-                        _registrations: "{{ group_members_query.json.resources }}"
+                        _registrations: "{{ all_group_members }}"
                       when: falcon_agent_verify | default(True) | bool
 
     - name: Manage stale agent registrations
