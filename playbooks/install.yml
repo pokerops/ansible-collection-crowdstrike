@@ -148,6 +148,21 @@
             v_agent_ids: "{{ agent_ids | map('nephelaiio.plugins.map_format', v_format) }}"
             v_filter: "device_id:[{{ v_agent_ids | join(',') }}]"
 
+        - name: Query number of group members
+          ansible.builtin.uri:
+            url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}"
+            follow_redirects: "{{ falcon_api_redirect }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ api_token }}"
+          register: group_members_query_head
+
+        - name: Set group member pagination facts
+          ansible.builtin.set_fact:
+            group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
+          vars:
+            _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+
         - name: Register agents to group - attempt 1
           block:
             - name: Register agents to group - attempt 1
@@ -164,21 +179,6 @@
                       value: "(device_id:{{ agent_ids | to_json }})"
                   ids:
                     - "{{ group_id }}"
-
-            - name: Query number of group members
-              ansible.builtin.uri:
-                url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}"
-                follow_redirects: "{{ falcon_api_redirect }}"
-                method: GET
-                headers:
-                  Authorization: "Bearer {{ api_token }}"
-              register: group_members_query_head
-
-            - name: Set group member pagination facts
-              ansible.builtin.set_fact:
-                group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
-              vars:
-                _pagination: "{{ group_members_query_head.json.meta.pagination }}"
 
             - name: Query group members
               ansible.builtin.uri:
@@ -224,21 +224,6 @@
                           value: "(device_id:{{ agent_ids | to_json }})"
                       ids:
                         - "{{ group_id }}"
-
-                - name: Query number of group members
-                  ansible.builtin.uri:
-                    url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}"
-                    follow_redirects: "{{ falcon_api_redirect }}"
-                    method: GET
-                    headers:
-                      Authorization: "Bearer {{ api_token }}"
-                  register: group_members_query_head
-
-                - name: Set group member pagination facts
-                  ansible.builtin.set_fact:
-                    group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
-                  vars:
-                    _pagination: "{{ group_members_query_head.json.meta.pagination }}"
 
                 - name: Query group members
                   ansible.builtin.uri:
@@ -286,21 +271,6 @@
                               value: "(device_id:{{ agent_ids | to_json }})"
                           ids:
                             - "{{ group_id }}"
-
-                    - name: Query number of group members
-                      ansible.builtin.uri:
-                        url: "{{ falcon_api_base }}/devices/queries/host-group-members/v1?id={{ group_id }}&filter={{ _filter }}"
-                        follow_redirects: "{{ falcon_api_redirect }}"
-                        method: GET
-                        headers:
-                          Authorization: "Bearer {{ api_token }}"
-                      register: group_members_query_head
-
-                    - name: Set group member pagination facts
-                      ansible.builtin.set_fact:
-                        group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
-                      vars:
-                        _pagination: "{{ group_members_query_head.json.meta.pagination }}"
 
                     - name: Query group members
                       ansible.builtin.uri:
