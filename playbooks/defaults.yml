@@ -10,7 +10,7 @@
 
     - name: Set api pagination size default
       ansible.builtin.set_fact:
-        falcon_api_page_size: 50
+        falcon_api_page_size: 100
       when: falcon_api_page_size is not defined
 
     - name: Set api redirect default
