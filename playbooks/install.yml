@@ -64,8 +64,12 @@
       ansible.builtin.debug:
         var: agent_id
 
+    - name: Set running host
+      ansible.builtin.set_fact:
+        running_host: "{{ ansible_play_hosts[0] }}"
+
     - name: Register agents to group
-      when: inventory_hostname == ansible_play_hosts[0]
+      when: inventory_hostname == running_host
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -305,7 +309,7 @@
       when:
         - falcon_group_manage | bool
         - ansible_play_hosts | symmetric_difference(groups['crowdstrike']) | length == 0
-        - inventory_hostname == ansible_play_hosts[0]
+        - inventory_hostname == running_host
       block:
         - name: Executive host
           ansible.builtin.set_fact:
@@ -313,15 +317,15 @@
 
         - name: Set auth facts
           ansible.builtin.set_fact:
-            api_token: "{{ hostvars[_play_host]['api_token'] }}"
+            api_token: "{{ hostvars[running_host]['api_token'] }}"
 
         - name: Set group id facts
           ansible.builtin.set_fact:
-            group_id: "{{ hostvars[_play_host]['group_id'] }}"
+            group_id: "{{ hostvars[running_host]['group_id'] }}"
 
         - name: Set agent id facts
           ansible.builtin.set_fact:
-            agent_ids: "{{ hostvars[_play_host]['agent_ids'] }}"
+            agent_ids: "{{ hostvars[running_host]['agent_ids'] }}"
 
         - name: Query group members
           ansible.builtin.uri:

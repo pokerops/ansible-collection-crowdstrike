@@ -9,8 +9,12 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
+    - name: Set running host
+      ansible.builtin.set_fact:
+        running_host: "{{ ansible_play_hosts[0] }}"
+
     - name: Verify group
-      when: inventory_hostname == ansible_play_hosts[0]
+      when: inventory_hostname == running_host
       delegate_to: localhost
       block:
         - name: Get Crowdstrike Authentication Token
