@@ -253,6 +253,3 @@
                     method: DELETE
                     headers:
                       Authorization: "Bearer {{ api_token }}"
-                  vars:
-                    group_target: "{{ group_query.json.resources | first }}"
-                    group_id: "{{ group_target.id }}"
