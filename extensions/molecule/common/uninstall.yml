@@ -85,11 +85,6 @@
             _filter: "name:'{{ falcon_group }}'"
           register: group_query
 
-        - name: Pause
-          ansible.builtin.pause:
-            seconds: 10
-            prompt: "Pausing to allow Crowdstrike API to reflect changes. Press Enter to continue..."
-
         - name: Verify group removal
           ansible.builtin.assert:
             that: group_data | length == 0

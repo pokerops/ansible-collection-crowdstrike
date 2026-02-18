@@ -66,7 +66,6 @@
 
     - name: Register agents to group
       when: inventory_hostname == ansible_play_hosts[0]
-      delegate_to: localhost
       block:
         - name: Get Crowdstrike Authentication Token
           ansible.builtin.uri:
@@ -84,6 +83,13 @@
         - name: Set auth facts
           ansible.builtin.set_fact:
             api_token: "{{ auth_response.json.access_token }}"
+          no_log: "{{ falcon_api_enable_no_log }}"
+
+        - name: Set global auth facts
+          ansible.builtin.set_fact:
+            api_token: "{{ auth_response.json.access_token }}"
+          delegate_to: localhost
+          delegate_facts: true
           no_log: "{{ falcon_api_enable_no_log }}"
 
         - name: Query registered groups
@@ -113,6 +119,12 @@
           vars:
             _group: "{{ falcon_group_data | first }}"
 
+        - name: Set global group facts
+          ansible.builtin.set_fact:
+            group_id: "{{ group_id }}"
+          delegate_to: localhost
+          delegate_facts: true
+
         - name: Aggregate agent ids
           ansible.builtin.set_fact:
             agent_ids: "{{ ansible_play_hosts | map('extract', hostvars, 'agent_id') | list }}"
@@ -120,6 +132,12 @@
         - name: Debug agent ids
           ansible.builtin.debug:
             var: agent_ids
+
+        - name: Set global agend ids
+          ansible.builtin.set_fact:
+            agent_ids: "{{ agent_ids }}"
+          delegate_to: localhost
+          delegate_facts: true
 
         - name: Set variables for group registration
           ansible.builtin.set_fact:
