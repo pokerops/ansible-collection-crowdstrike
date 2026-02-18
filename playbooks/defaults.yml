@@ -3,6 +3,10 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
+    - name: Set running host
+      ansible.builtin.set_fact:
+        running_host: "{{ ansible_play_hosts[0] }}"
+
     - name: Set api auth default
       ansible.builtin.set_fact:
         falcon_api_base: https://api.crowdstrike.com

@@ -64,10 +64,6 @@
       ansible.builtin.debug:
         var: agent_id
 
-    - name: Set running host
-      ansible.builtin.set_fact:
-        running_host: "{{ ansible_play_hosts[0] }}"
-
     - name: Register agents to group
       when: inventory_hostname == running_host
       block:
