@@ -88,6 +88,9 @@
           vars:
             _filter: "name:'{{ falcon_group }}'"
           register: group_query
+          retries: "{{ falcon_api_poll_retries }}"
+          delay: "{{ falcon_api_poll_interval }}"
+          until: group_query.status == 200
 
         - name: Verify group removal
           ansible.builtin.assert:

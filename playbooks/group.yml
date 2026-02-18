@@ -29,9 +29,6 @@
           when: falcon_group is defined
           block:
 
-            - debug:
-                msg: "Managing group {{ falcon_group }} with state {{ falcon_group_state }}"
-
             - name: Query Falcon group
               ansible.builtin.uri:
                 url: "{{ falcon_api_base }}/devices/combined/host-groups/v1?filter={{ _filter }}"
@@ -42,10 +39,9 @@
               vars:
                 _filter: "name:'{{ falcon_group }}'"
               register: group_query
-
-            - debug:
-                var: group_query
-
+              retries: "{{ falcon_api_poll_retries }}"
+              delay: "{{ falcon_api_poll_interval }}"
+              until: group_query.status == 200
 
             - name: Set group facts
               ansible.builtin.set_fact:
