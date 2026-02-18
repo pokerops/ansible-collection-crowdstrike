@@ -46,6 +46,7 @@
             - debug:
                 var: group_query
 
+
             - name: Set group facts
               ansible.builtin.set_fact:
                 falcon_group_data: "{{ group_query.json.resources | default([]) }}"
