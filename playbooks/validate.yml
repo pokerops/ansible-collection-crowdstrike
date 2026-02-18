@@ -25,7 +25,7 @@
         that: _state | length == 1
         fail_msg: falcon_group_state must be consistent across all hosts
       vars:
-        _state: "{{ ansible_play_hosts_all | map('extract', hostvars, ['_falcon_group_state']) | unique }}"
+        _state: "{{ ansible_play_hosts_all | map('extract', hostvars, ['falcon_group_state']) | unique }}"
 
     - name: Check falcon_host_state vardef
       ansible.builtin.assert:
