@@ -157,14 +157,12 @@
               Authorization: "Bearer {{ api_token }}"
           register: group_members_query_head
 
-        - debug:
-            var: group_members_query_head
-
         - name: Set group member pagination facts
           ansible.builtin.set_fact:
             group_members_pages: "{{ range(0, _pagination.total, _pagination.limit) | list }}"
           vars:
             _pagination: "{{ group_members_query_head.json.meta.pagination }}"
+          when: group_members_query_head.json.meta.pagination.total > 0
 
         - name: Register agents to group - attempt 1
           block:
@@ -190,11 +188,8 @@
                 method: GET
                 headers:
                   Authorization: "Bearer {{ api_token }}"
-              loop: "{{ group_members_pages }}"
+              loop: "{{ group_members_pages | default([0]) }}"
               register: group_members_query
-
-            - debug:
-                var: group_members_query
 
             - name: Set group members facts
               ansible.builtin.set_fact:
@@ -240,7 +235,7 @@
                       Authorization: "Bearer {{ api_token }}"
                   vars:
                     parameters: "id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
-                  loop: "{{ group_members_pages }}"
+                  loop: "{{ group_members_pages | default([0]) }}"
                   register: group_members_query
 
                 - name: Set group members facts
@@ -287,7 +282,7 @@
                           Authorization: "Bearer {{ api_token }}"
                       vars:
                         parameters: "id={{ group_id }}&filter={{ _filter }}&limit={{ _limit }}&offset={{ item }}"
-                      loop: "{{ group_members_pages }}"
+                      loop: "{{ group_members_pages | default([0]) }}"
                       register: group_members_query
 
                     - name: Set group members facts
