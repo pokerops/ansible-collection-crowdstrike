@@ -10,6 +10,10 @@
     falcon_present_group: "{{ falcon_online_group_name | default('falcon_present') }}{{ falcon_suffix }}"
     falcon_suffix: "{{ falcon_group_name_suffix | default('') }}"
   tasks:
+    - name: End play for non-running hosts
+      ansible.builtin.meta: end_host
+      when: inventory_hostname != running_host
+
     - name: Ping host
       ansible.builtin.ping:
       register: host_facts

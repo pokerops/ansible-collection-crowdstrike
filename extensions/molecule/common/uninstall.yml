@@ -9,9 +9,9 @@
   hosts: crowdstrike
   gather_facts: false
   tasks:
-    - name: Set running host
-      ansible.builtin.set_fact:
-        running_host: "{{ ansible_play_hosts[0] }}"
+    - name: End play for non-running hosts
+      ansible.builtin.meta: end_host
+      when: inventory_hostname != running_host
 
     - name: Verify group
       when: inventory_hostname == running_host
