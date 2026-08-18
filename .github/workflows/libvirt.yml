@@ -22,10 +22,14 @@ jobs:
         scenario:
           - install
         image:
-          - https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
-          - https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
-          - https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
-          - https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+          - name: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+            distro: jammy
+          - name: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+            distro: noble
+          - name: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+            distro: bookworm
+          - name: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+            distro: rocky9
     env:
       MOLECULE_LOGDIR: "/tmp/logs"
       CROWDSTRIKE_CLIENT_ID: ${{ secrets.CROWDSTRIKE_CLIENT_ID }}
@@ -38,7 +42,8 @@ jobs:
           run: >
             just
             --set MOLECULE_SCENARIO ${{ matrix.scenario }}
-            --set MOLECULE_KVM_IMAGE ${{ matrix.image }}
+            --set MOLECULE_KVM_IMAGE ${{ matrix.image.name }}
+            --set MOLECULE_KVM_DISTRO ${{ matrix.image.distro }}
             requirements test
 
       - name: Upload install logs
