@@ -27,13 +27,14 @@ The following parameters control the behavior of the collection playbooks:
 
 ### API Settings
 
-| Parameter                  | Description                        | Default                     |
-| -------------------------- | ---------------------------------- | --------------------------- |
-| `falcon_api_base`          | Base URL for CrowdStrike API       | https://api.crowdstrike.com |
-| `falcon_api_page_size`     | Number of items per API page       | 50                          |
-| `falcon_api_redirect`      | Allow API redirects                | all                         |
-| `falcon_api_poll_interval` | Seconds between API retry attempts | 60                          |
-| `falcon_api_poll_retries`  | Maximum number of API retries      | 10                          |
+| Parameter                     | Description                                  | Default                     |
+| ----------------------------- | -------------------------------------------- | --------------------------- |
+| `falcon_api_base`             | Base URL for CrowdStrike API                 | https://api.crowdstrike.com |
+| `falcon_api_page_size`        | Number of items per API page                 | 50                          |
+| `falcon_api_redirect`         | Allow API redirects                          | all                         |
+| `falcon_api_poll_interval`    | Seconds between API retry attempts           | 60                          |
+| `falcon_api_poll_retries`     | Maximum number of API retries                | 10                          |
+| `falcon_api_device_ids_limit` | Maximum number of device ids within a filter | 100                         |
 
 ### Agent Settings
 
