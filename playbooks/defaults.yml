@@ -57,6 +57,11 @@
         falcon_api_enable_no_log: true
       when: falcon_api_enable_no_log is not defined
 
+    - name: Set api device ids limit default
+      ansible.builtin.set_fact:
+        falcon_api_device_ids_limit: 100
+      when: falcon_api_device_ids_limit is not defined
+
     - name: Set host state list default
       ansible.builtin.set_fact:
         falcon_host_state_list:
